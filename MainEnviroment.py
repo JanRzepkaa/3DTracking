@@ -59,16 +59,23 @@ class Simulation:
         self.reset_cameras()
 
         # 3. Bind Keys
-        # We pass specific vectors for each key press
-        self.plotter.add_key_event("Up", lambda: self.update_position((0, 0.2, 0)))
-        self.plotter.add_key_event("Down", lambda: self.update_position((0, -0.2, 0)))
-        self.plotter.add_key_event("Left", lambda: self.update_position((-0.2, 0, 0)))
-        self.plotter.add_key_event("Right", lambda: self.update_position((0.2, 0, 0)))
-        self.plotter.add_key_event("space", lambda: self.update_position((0, 0, 0.2)))
-        self.plotter.add_key_event("Shift_L", lambda: self.update_position((0, 0, -0.2)))
-        self.plotter.add_key_event("t", lambda: self.reset_cameras())
-        self.plotter.add_key_event("q", self.shutdown)
-        self.plotter.add_key_event("v", self.change_cv_window_visibility)
+        self.add_key_events()
+
+    def add_key_events(self):
+        key_events = [
+            ("Up", lambda: self.update_position((0, 0.2, 0))),
+            ("Down", lambda: self.update_position((0, -0.2, 0))),
+            ("Left", lambda: self.update_position((-0.2, 0, 0))),
+            ("Right", lambda: self.update_position((0.2, 0, 0))),
+            ("space", lambda: self.update_position((0, 0, 0.2))),
+            ("Shift_L", lambda: self.update_position((0, 0, -0.2))),
+            ("t", lambda: self.reset_cameras()),
+            ("q", self.shutdown),
+            ("v", self.change_cv_window_visibility)
+        ]
+
+        for key, func in key_events:
+            self.plotter.add_key_event(key, func)
 
     def change_cv_window_visibility(self):
         self.show_cv_window = not self.show_cv_window
