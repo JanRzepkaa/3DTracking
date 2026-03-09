@@ -2,6 +2,8 @@ from VistaRod import Rod
 import pyvista as pv # type: ignore
 import numpy as np # type: ignore
 import time
+import cv2 # type: ignore
+from AnalyzePyVistaVideo import AnalyzePyVistaVideo
 
 class Simulation:
     def __init__(self):
@@ -128,14 +130,28 @@ class Simulation:
         self.reset_cameras()
         self.plotter.show(interactive_update=True)
 
+        analysis = AnalyzePyVistaVideo()
+        analysis.startWindow()
+
         while self.running:
             self.animate_step()
             self.rotate_rod()
             self.plotter.update()
+
+            self.plotter.subplot(0, 1)
+            img_rgb = self.plotter.screenshot(None, return_img=True)
+
+            analysis.update_from_pyvista_screenshot(img_rgb)
+
+            # 5. Handle OpenCV events (Required to keep window responsive)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                self.shutdown()
             time.sleep(0.01)
             
         print("Closing simulation...")
+        analysis.shutdown()
         self.plotter.close()
+
 
     def shutdown(self):
         # This function is called when you press Q
