@@ -36,7 +36,7 @@ class Simulation:
 
         # 2. Setup the Plotter with 3 subplots
         self.plotter = pv.Plotter(shape=(1, 3), window_size=(1500, 600), title="Real-Time Control")
-        self.hidden_plotter = pv.Plotter(off_screen=True, window_size=(1920, 1080))  # Hidden plotter for off-screen rendering
+        self.hidden_plotter = pv.Plotter(off_screen=True, window_size=(1000, 400))  # Hidden plotter for off-screen rendering
 
         self.add_all_meshes_to_plotter(self.hidden_plotter)
         self.hidden_plotter.camera.position = self.camera_positions[2]
@@ -138,9 +138,9 @@ class Simulation:
             self.animate_step()
             self.rotate_rod()
             self.plotter.update()
+            self.hidden_plotter.update()
 
-            self.plotter.subplot(0, 1)
-            img_rgb = self.plotter.screenshot(None, return_img=True)
+            img_rgb = self.hidden_plotter.screenshot(None, return_img=True)
 
             analysis.update_from_pyvista_screenshot(img_rgb)
 
