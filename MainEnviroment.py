@@ -37,35 +37,21 @@ class Simulation:
         # --- SETUP VIEW 1 (Main) ---
         self.plotter.subplot(0, 0)
         self.plotter.add_text("View 1: Main\n[WASD] Move\n[Space/Shift] Up/Down", font_size=10)
-        self.plotter.add_mesh(self.player_mesh, color="red", label="Player") # Red is player
-        for s in self.static_spheres:
-            self.plotter.add_mesh(s, color="cyan")
-
-        self.plotter.add_mesh(self.pointer.vista, color="yellow")
+        self.add_all_meshes_to_plotter(self.plotter)
         
         # Add Visual Cameras
-        self.plotter.add_mesh(pv.Cone(center=self.cam2_pos, direction=(1,0,0)), color="green", opacity=0.9)
-        self.plotter.add_mesh(pv.Cone(center=self.cam3_pos, direction=(0,1,0)), color="yellow", opacity=0.9)
+        
         self.plotter.show_grid()
 
         # --- SETUP VIEW 2 (Top Down) ---
         self.plotter.subplot(0, 1)
         self.plotter.add_text("View 2: Top-Down", font_size=10)
-        # We add the SAME self.player_mesh object here
-        self.plotter.add_mesh(self.player_mesh, color="red") 
-        for s in self.static_spheres:
-            self.plotter.add_mesh(s, color="cyan")
-        self.plotter.add_mesh(self.pointer.vista, color="yellow")
-        
+        self.add_all_meshes_to_plotter(self.plotter)
         
         # --- SETUP VIEW 3 (Side) ---
         self.plotter.subplot(0, 2)
         self.plotter.add_text("View 3: Side", font_size=10)
-        # We add the SAME self.player_mesh object here too
-        self.plotter.add_mesh(self.player_mesh, color="red")
-        for s in self.static_spheres:
-            self.plotter.add_mesh(s, color="cyan")
-        self.plotter.add_mesh(self.pointer.vista, color="yellow")
+        self.add_all_meshes_to_plotter(self.plotter)
             
         self.reset_cameras()
 
@@ -80,19 +66,28 @@ class Simulation:
         self.plotter.add_key_event("t", lambda: self.reset_cameras())
         self.plotter.add_key_event("q", self.shutdown)
 
+    def add_all_meshes_to_plotter(self, local_plotter):
+        local_plotter.add_mesh(self.player_mesh, color="red")
+        for s in self.static_spheres:
+            local_plotter.add_mesh(s, color="cyan")
+        local_plotter.add_mesh(self.pointer.vista, color="yellow")
+
+        self.plotter.add_mesh(pv.Cone(center=self.cam2_pos, direction=(1,0,0)), color="green", opacity=0.9)
+        self.plotter.add_mesh(pv.Cone(center=self.cam3_pos, direction=(0,1,0)), color="yellow", opacity=0.9)
+
     def reset_cameras(self):
         self.plotter.subplot(0, 1)
 
         self.plotter.camera.position = self.cam2_pos
         self.plotter.camera.focal_point = (0, 0, 0)
         self.plotter.camera.up = (0, 0, 1)
-        self.plotter.camera.clipping_range = (0.1, 1000)
+        self.plotter.camera.clipping_range = (0.6, 1000)
 
         self.plotter.subplot(0, 2)
         self.plotter.camera.position = self.cam3_pos
         self.plotter.camera.focal_point = (0, 0, 0)
         self.plotter.camera.up = (0, 0, 1)
-        self.plotter.camera.clipping_range = (0.1, 1000)
+        self.plotter.camera.clipping_range = (0.6, 1000)
 
         self.plotter.subplot(0, 0)
 
