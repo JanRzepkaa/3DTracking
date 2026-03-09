@@ -27,9 +27,9 @@ class Simulation:
 
         # Define camera positions
         self.camera_positions = {
-            1: (5, 5, 5),
-            2: (8, 0, 2),
-            3: (0, 8, 2)
+            0: (5, 5, 5),
+            1: (8, 0, 2),
+            2: (0, 8, 2)
         }
 
         self.pointer = Rod(length=4)
@@ -89,8 +89,8 @@ class Simulation:
             local_plotter.add_mesh(s, color="cyan")
         local_plotter.add_mesh(self.pointer.vista, color="yellow")
 
-        self.plotter.add_mesh(pv.Cone(center=self.camera_positions[2], direction=(1,0,0)), color="green", opacity=0.9)
-        self.plotter.add_mesh(pv.Cone(center=self.camera_positions[3], direction=(0,1,0)), color="yellow", opacity=0.9)
+        self.plotter.add_mesh(pv.Cone(center=self.camera_positions[1], direction=(1,0,0)), color="green", opacity=0.9)
+        self.plotter.add_mesh(pv.Cone(center=self.camera_positions[2], direction=(0,1,0)), color="yellow", opacity=0.9)
 
     def reset_cameras(self):
         for i in [1, 2]:
