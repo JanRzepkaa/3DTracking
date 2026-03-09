@@ -29,6 +29,13 @@ class Simulation:
 
         # 2. Setup the Plotter with 3 subplots
         self.plotter = pv.Plotter(shape=(1, 3), window_size=(1500, 600), title="Real-Time Control")
+        self.hidden_plotter = pv.Plotter(off_screen=True, window_size=(1920, 1080))  # Hidden plotter for off-screen rendering
+
+        self.add_all_meshes_to_plotter(self.hidden_plotter)
+        self.hidden_plotter.camera.position = self.cam2_pos
+        self.hidden_plotter.camera.focal_point = (0, 0, 0)
+        self.hidden_plotter.camera.up = (0, 0, 1)
+        self.hidden_plotter.camera.clipping_range = (0.6, 1000)
 
         # Define camera positions
         self.cam2_pos = (8, 0, 2)
