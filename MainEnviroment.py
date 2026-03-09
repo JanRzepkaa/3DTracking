@@ -42,8 +42,8 @@ class Simulation:
         self.plotter.add_mesh(self.pointer.vista, color="yellow")
         
         # Add Visual Cameras
-        self.plotter.add_mesh(pv.Cone(center=self.cam2_pos, direction=(0,-1,0)), color="green", opacity=0.9)
-        self.plotter.add_mesh(pv.Cone(center=self.cam3_pos, direction=(-1,0,0)), color="yellow", opacity=0.9)
+        self.plotter.add_mesh(pv.Cone(center=self.cam2_pos, direction=(1,0,0)), color="green", opacity=0.9)
+        self.plotter.add_mesh(pv.Cone(center=self.cam3_pos, direction=(0,1,0)), color="yellow", opacity=0.9)
         self.plotter.show_grid()
 
         # --- SETUP VIEW 2 (Top Down) ---
