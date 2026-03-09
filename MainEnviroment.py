@@ -45,25 +45,15 @@ class Simulation:
         self.hidden_plotter.camera.clipping_range = (0.6, 1000)
 
 
-        # --- SETUP VIEW 1 (Main) ---
+        view = [(0, "View 1 Main"), (1, "View 2 Left"), (2, "View 3 Right")]
+        for i, text in view:
+            self.plotter.subplot(0, i)
+            self.plotter.add_text(text, font_size=10)
+            self.add_all_meshes_to_plotter(self.plotter, i)
+            
         self.plotter.subplot(0, 0)
-        self.plotter.add_text("View 1: Main\n[WASD] Move\n[Space/Shift] Up/Down", font_size=10)
-        self.add_all_meshes_to_plotter(self.plotter)
-        
-        # Add Visual Cameras
-        
         self.plotter.show_grid()
 
-        # --- SETUP VIEW 2 (Top Down) ---
-        self.plotter.subplot(0, 1)
-        self.plotter.add_text("View 2: Top-Down", font_size=10)
-        self.add_all_meshes_to_plotter(self.plotter)    
-        
-        # --- SETUP VIEW 3 (Side) ---
-        self.plotter.subplot(0, 2)
-        self.plotter.add_text("View 3: Side", font_size=10)
-        self.add_all_meshes_to_plotter(self.plotter)
-            
         self.reset_cameras()
 
         # 3. Bind Keys
@@ -77,7 +67,9 @@ class Simulation:
         self.plotter.add_key_event("t", lambda: self.reset_cameras())
         self.plotter.add_key_event("q", self.shutdown)
 
-    def add_all_meshes_to_plotter(self, local_plotter):
+    def add_all_meshes_to_plotter(self, local_plotter, subplot_index=None):
+        if subplot_index is not None:
+            local_plotter.subplot(0, subplot_index)
         local_plotter.add_mesh(self.player_mesh, color="red")
         for s in self.static_spheres:
             local_plotter.add_mesh(s, color="cyan")
