@@ -23,6 +23,13 @@ class Simulation:
             np.array([-2.0, 0.0, 1.0])
         ]
 
+        # Define camera positions
+        self.camera_positions = {
+            1: (5, 5, 5),
+            2: (8, 0, 2),
+            3: (0, 8, 2)
+        }
+
         self.pointer = Rod(length=4)
         self.pointer.initiate_random_movement()
         # Add to plotter
@@ -32,14 +39,11 @@ class Simulation:
         self.hidden_plotter = pv.Plotter(off_screen=True, window_size=(1920, 1080))  # Hidden plotter for off-screen rendering
 
         self.add_all_meshes_to_plotter(self.hidden_plotter)
-        self.hidden_plotter.camera.position = self.cam2_pos
+        self.hidden_plotter.camera.position = self.camera_positions[2]
         self.hidden_plotter.camera.focal_point = (0, 0, 0)
         self.hidden_plotter.camera.up = (0, 0, 1)
         self.hidden_plotter.camera.clipping_range = (0.6, 1000)
 
-        # Define camera positions
-        self.cam2_pos = (8, 0, 2)
-        self.cam3_pos = (0, 8, 2)
 
         # --- SETUP VIEW 1 (Main) ---
         self.plotter.subplot(0, 0)
@@ -53,7 +57,7 @@ class Simulation:
         # --- SETUP VIEW 2 (Top Down) ---
         self.plotter.subplot(0, 1)
         self.plotter.add_text("View 2: Top-Down", font_size=10)
-        self.add_all_meshes_to_plotter(self.plotter)
+        self.add_all_meshes_to_plotter(self.plotter)    
         
         # --- SETUP VIEW 3 (Side) ---
         self.plotter.subplot(0, 2)
@@ -79,22 +83,17 @@ class Simulation:
             local_plotter.add_mesh(s, color="cyan")
         local_plotter.add_mesh(self.pointer.vista, color="yellow")
 
-        self.plotter.add_mesh(pv.Cone(center=self.cam2_pos, direction=(1,0,0)), color="green", opacity=0.9)
-        self.plotter.add_mesh(pv.Cone(center=self.cam3_pos, direction=(0,1,0)), color="yellow", opacity=0.9)
+        self.plotter.add_mesh(pv.Cone(center=self.camera_positions[2], direction=(1,0,0)), color="green", opacity=0.9)
+        self.plotter.add_mesh(pv.Cone(center=self.camera_positions[3], direction=(0,1,0)), color="yellow", opacity=0.9)
 
     def reset_cameras(self):
-        self.plotter.subplot(0, 1)
+        for i in [1, 2]:
+            self.plotter.subplot(0, i)
 
-        self.plotter.camera.position = self.cam2_pos
-        self.plotter.camera.focal_point = (0, 0, 0)
-        self.plotter.camera.up = (0, 0, 1)
-        self.plotter.camera.clipping_range = (0.6, 1000)
-
-        self.plotter.subplot(0, 2)
-        self.plotter.camera.position = self.cam3_pos
-        self.plotter.camera.focal_point = (0, 0, 0)
-        self.plotter.camera.up = (0, 0, 1)
-        self.plotter.camera.clipping_range = (0.6, 1000)
+            self.plotter.camera.position = self.camera_positions[i]
+            self.plotter.camera.focal_point = (0, 0, 0)
+            self.plotter.camera.up = (0, 0, 1)
+            self.plotter.camera.clipping_range = (0.6, 1000)
 
         self.plotter.subplot(0, 0)
 
