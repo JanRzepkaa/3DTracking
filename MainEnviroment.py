@@ -131,7 +131,7 @@ class Simulation:
         self.reset_cameras()
         self.plotter.show(interactive_update=True)
 
-        analysis = AnalyzePyVistaVideo()
+        analysis = AnalyzePyVistaVideo(True)
         analysis.startWindow()
 
         while self.running:

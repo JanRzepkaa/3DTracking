@@ -2,15 +2,17 @@ import cv2
 import numpy as np
 
 class AnalyzePyVistaVideo:
-    def __init__(self):
+    def __init__(self, show_window=True):
         self.window_name = "PyVista Video Analysis"
-        pass
+        self.show_window = show_window
 
     def startWindow(self):
-        cv2.namedWindow(self.window_name, cv2.WINDOW_AUTOSIZE)
+        if self.show_window:
+            cv2.namedWindow(self.window_name, cv2.WINDOW_AUTOSIZE)
 
     def update(self, frame):
-        cv2.imshow(self.window_name, frame)
+        if self.show_window:
+            cv2.imshow(self.window_name, frame)
 
     def shutdown(self):
         cv2.destroyAllWindows()
