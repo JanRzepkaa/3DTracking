@@ -8,6 +8,8 @@ from AnalyzePyVistaVideo import AnalyzePyVistaVideo
 class Simulation:
     def __init__(self):
         self.running = True
+        self.show_cv_window = True
+        self.cv_window = AnalyzePyVistaVideo(self.show_cv_window)
         # 1. Create the shared "Player" object
         # We save this as self.player so we can modify it later
         self.player_mesh = pv.Sphere(radius=0.5, center=(0, 0, 0))
@@ -66,7 +68,12 @@ class Simulation:
         self.plotter.add_key_event("Shift_L", lambda: self.update_position((0, 0, -0.2)))
         self.plotter.add_key_event("t", lambda: self.reset_cameras())
         self.plotter.add_key_event("q", self.shutdown)
+        self.plotter.add_key_event("v", self.change_cv_window_visibility)
 
+    def change_cv_window_visibility(self):
+        self.show_cv_window = not self.show_cv_window
+        self.cv_window.change_visibility(self.show_cv_window)
+        
     def add_all_meshes_to_plotter(self, local_plotter, subplot_index=None):
         if subplot_index is not None:
             local_plotter.subplot(0, subplot_index)
@@ -123,8 +130,7 @@ class Simulation:
         self.reset_cameras()
         self.plotter.show(interactive_update=True)
 
-        analysis = AnalyzePyVistaVideo(True)
-        analysis.startWindow()
+        self.cv_window.startWindow()
 
         while self.running:
             self.animate_step()
@@ -134,7 +140,7 @@ class Simulation:
 
             img_rgb = self.hidden_plotter.screenshot(None, return_img=True)
 
-            analysis.update_from_pyvista_screenshot(img_rgb)
+            self.cv_window.update_from_pyvista_screenshot(img_rgb)
 
             # 5. Handle OpenCV events (Required to keep window responsive)
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -142,7 +148,7 @@ class Simulation:
             time.sleep(0.01)
             
         print("Closing simulation...")
-        analysis.shutdown()
+        self.cv_window.shutdown()
         self.plotter.close()
 
 

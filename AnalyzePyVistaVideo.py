@@ -29,3 +29,10 @@ class AnalyzePyVistaVideo:
             
             # 4. Display the processed frame
             self.update(thresh)
+
+    def change_visibility(self, show):
+        self.show_window = show
+        if not show:
+            self.shutdown()
+        else:
+            self.startWindow()
