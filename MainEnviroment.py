@@ -12,8 +12,8 @@ class Simulation:
         self.cv_window = AnalyzePyVistaVideo(self.show_cv_window)
         # 1. Create the shared "Player" object
         # We save this as self.player so we can modify it later
-        self.player_mesh = pv.Sphere(radius=0.5, center=(0, 0, 0))
-        
+        self.player_mesh = pv.Sphere(radius=0.5, center=(0, 0, 1))
+        self.player_position = np.array([0.0, 0.0, 1])
         # Create other static objects
         self.static_spheres = [
             pv.Sphere(radius=0.3, center=(2, 0, 0)),
@@ -29,7 +29,7 @@ class Simulation:
         self.camera_positions = {
             0: (5, 5, 5),
             1: (8, 0, 2),
-            2: (0, 8, 2)
+            2: (0, 8, 1)
         }
 
         self.pointer = Rod(length=4)
@@ -42,10 +42,18 @@ class Simulation:
 
         self.add_all_meshes_to_plotter(self.hidden_plotter)
         self.hidden_plotter.camera.position = self.camera_positions[2]
-        self.hidden_plotter.camera.focal_point = (0, 0, 0)
+        self.hidden_plotter.camera.focal_point = (0, 0, 1)
         self.hidden_plotter.camera.up = (0, 0, 1)
         self.hidden_plotter.camera.clipping_range = (0.6, 1000)
 
+        self.cv_window.initialaze_calibration_test_data(
+            ball_position=self.player_position,
+            camera_position=self.camera_positions[2],
+            camera_rotation=(np.pi/2, 0, 0),
+            camera_intrinsics=self.calculate_camera_intrinsics(self.hidden_plotter)
+        )
+
+        print("Camera Intrinsics:", self.calculate_camera_intrinsics(self.hidden_plotter))
 
         view = [(0, "View 1 Main"), (1, "View 2 Left"), (2, "View 3 Right")]
         for i, text in view:
@@ -60,6 +68,23 @@ class Simulation:
 
         # 3. Bind Keys
         self.add_key_events()
+
+    def calculate_camera_intrinsics(self, plotter, subplot_index=None):
+        if subplot_index is not None:
+            plotter.subplot(0, subplot_index)
+        width, height = plotter.window_size
+
+        cx = width / 2
+        cy = height / 2
+
+        fovy = plotter.camera.view_angle
+        fovy_rad = np.deg2rad(fovy)
+
+        fy = height / (2 * np.tan(fovy_rad / 2))
+        fx = fy * (width / height)
+
+        camera_intrinsics = (fx, fy, cx, cy)
+        return camera_intrinsics
 
     def add_key_events(self):
         key_events = [
@@ -131,6 +156,7 @@ class Simulation:
 
     def update_position(self, change_vector):
         self.player_mesh.points += np.array(change_vector)
+        self.player_position += np.array(change_vector)
         self.plotter.render()
 
     def start(self):
