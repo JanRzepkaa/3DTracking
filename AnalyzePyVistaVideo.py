@@ -82,17 +82,17 @@ class AnalyzePyVistaVideo:
         cv2.putText(frame, text, (centroid[0] + 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
     
     def write_simulated_coordinates(self, frame, coordinates):
-        sim_coridinates = simulate_camera(
+        sim_coridinates, norm = simulate_camera(
             ball_position=self.ball_position,
             camera_position=self.camera_position,
             camera_rotation=self.camera_rotation,
             camera_intrinsics=self.camera_intrinsics
         )
-
-        print(self.ball_position)
     
-        text = f"Sim({sim_coridinates[0]}, {sim_coridinates[1]})"
-        cv2.putText(frame, text, (coordinates[0] + 10, coordinates[1] - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+        text = f"Sim({sim_coridinates[0]:.0f}, {sim_coridinates[1]:.0f})"
+        text2 = f"Norm({norm[0]:.2f}, {norm[1]:.2f})"
+        cv2.putText(frame, text, (coordinates[0] + 10, coordinates[1] + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+        cv2.putText(frame, text2, (coordinates[0] + 10, coordinates[1] + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
     def draw_contours(self, frame, contours):
         cv2.drawContours(frame, contours, -1, (255, 0, 0), 2)  # Draw blue contours
