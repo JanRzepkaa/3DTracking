@@ -75,7 +75,7 @@ class Rod:
         diff = self.next_center - self.center
         dist = np.pow(np.pow(diff[0], 2) + np.pow(diff[1], 2) + np.pow(diff[2], 2),0.5)
 
-        print(dist)
+        #print(dist)
 
         to_travel = diff*0.1
 
