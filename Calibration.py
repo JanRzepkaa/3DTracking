@@ -89,7 +89,7 @@ def euler_to_rvec_cv2(theta_x, theta_y, theta_z):
     
     return rvec
 
-def simulate_camera(ball_position, camera_position, camera_rotation, camera_intrinsics):
+def projectPoints(ball_position, camera_position, camera_rotation, camera_intrinsics):
     """
         Simulate the camera view of a ball given the ball position, camera position and rotation.
         This is used to test the find_camera_position_and_rotation_from_3_fixed_balls function.
@@ -104,26 +104,32 @@ def simulate_camera(ball_position, camera_position, camera_rotation, camera_intr
             (x, y) position of the ball in the camera's image plane
     """
 
-    true_pts = np.array([ball_position], dtype=np.float32)
+    ball_pos = np.array(ball_position, dtype=np.float64)
+    cam_pos = np.array(camera_position, dtype=np.float64)
+
+    # 1. Get rvec and extract the 3x3 Rotation Matrix (R)
     rvec = euler_to_rvec_scipy(camera_rotation)
-    tvec = np.array(camera_position, dtype=np.float32)
-    
+    R, _ = cv2.Rodrigues(rvec)
+
+    # 2. CORRECT TVEC CALCULATION
+    # tvec = -R * C
+    tvec = -np.dot(R, cam_pos)
+
+    # 3. Setup Camera Matrix
     fx, fy, cx, cy = camera_intrinsics
     camera_matrix = np.array([[fx, 0, cx],
                               [0, fy, cy],
-                              [0, 0, 1]], dtype=np.float32)
+                              [0, 0, 1]], dtype=np.float64)
 
+    # --- METHOD A: OPENCV projectPoints ---
+    true_pts = np.array([ball_pos])
+    res, _ = cv2.projectPoints(true_pts, rvec, tvec, camera_matrix, distCoeffs=None)
+    cv2_pixel_coords = res[0].flatten()
 
-    res = cv2.projectPoints(true_pts, rvec, tvec, camera_matrix, distCoeffs=None)
+    # Filp y coordinate to match OpenCV's convention (if needed)
+    cv2_pixel_coords[1] = camera_matrix[1, 2] - (cv2_pixel_coords[1] - camera_matrix[1, 2])
 
-    #print("Projected points using OpenCV:", res)
-
-    return res[0].flatten(), (0, 0)
-
-    # Convert to numpy
-    ball_position = np.asarray(ball_position)
-    camera_position = np.asarray(camera_position)
-
+    # --- METHOD B: MANUAL MATH ---
     # Create a 3D vector from camera to center of the ball
     camera_to_ball = ball_position - camera_position
     
@@ -138,13 +144,12 @@ def simulate_camera(ball_position, camera_position, camera_rotation, camera_intr
     y = - Y / Z
 
     # 5. Apply camera intrinsics
-
     pixel_x = fx * x + cx
     pixel_y = fy * y + cy
 
     # Currently 0, 0 
 
-    return (pixel_x, pixel_y), (x, y)
+    return (pixel_x, pixel_y), cv2_pixel_coords
 
 
 if __name__ == "__main__":
