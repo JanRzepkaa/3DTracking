@@ -24,22 +24,26 @@ class AnalyzePyVistaVideo:
 
             new_frame = img_bgr.copy() # Create a copy for drawing
             
-            # 2. Isolate the color of interest (e.g., green)
-            lower_green = np.array([40, 100, 100])
-            upper_green = np.array([80, 255, 255])
-            thresh = self.isolate_color(img_bgr, (lower_green, upper_green))
-
-            # Find contours and centroids
-            contours = self.find_contours(thresh)
-            self.draw_contours(new_frame, contours)
-            self.draw_all_ceneters(new_frame, contours)
+            self.find_and_draw_centroids(new_frame)
             
             # 4. Display the processed frame
             self.update(new_frame)
 
-    def isolate_color(self, img_rgb, color_range):
-        # Convert RGB to HSV
-        img_hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
+    def find_and_draw_centroids(self, frame):
+        # 2. Isolate the color of interest (e.g., green)
+        lower_green = np.array([40, 100, 100])
+        upper_green = np.array([80, 255, 255])
+        thresh = self.isolate_color(frame, (lower_green, upper_green))
+
+        # Find contours and centroids
+        contours = self.find_contours(thresh)
+        self.draw_contours(frame, contours)
+        self.draw_all_ceneters(frame, contours)
+
+
+    def isolate_color(self, img_bgr, color_range):
+        # Convert BGR to HSV
+        img_hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
         # Create a mask for the specified color range
         mask = cv2.inRange(img_hsv, color_range[0], color_range[1])
         return mask
