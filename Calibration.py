@@ -10,7 +10,53 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
         We can then use this information to find the position of the camera.
     """
 
-    pass
+    object_points = np.array(true_positions, dtype=np.float32)
+
+    image_points = np.array(video_positions, dtype=np.float32)
+
+    fx, fy, cx, cy = camera_intrinsics
+    camera_matrix = np.array([
+        [fx,0,cx],
+        [0,fy,cy],
+        [0,0,1]
+    ])
+
+    def solve_pnp(object_points, image_points, camera_matrix):
+        dist_coeffs = np.zeros((4,1)) # Assuming no lens distortion
+        success, rvec, tvec = cv2.solvePnP(object_points, image_points, camera_matrix, dist_coeffs)
+        if not success:
+            raise ValueError("Could not solve PnP")
+        return rvec.flatten(), tvec.flatten()
+
+    # Run through all combinations of 3 balls
+    from itertools import combinations
+    best_error = float('inf')
+    best_parameters = None
+
+    for combo in combinations(range(len(true_positions)), 3):
+        try:
+            rvec, tvec = solve_pnp(object_points[list(combo)], image_points[list(combo)], camera_matrix)
+
+            # Project all object points using the estimated parameters
+            projected_points, _ = cv2.projectPoints(object_points, rvec, tvec, camera_matrix, distCoeffs=None)
+            projected_points = projected_points.reshape(-1, 2)
+
+            # Calculate reprojection error
+            error = np.linalg.norm(projected_points - image_points, axis=1).mean()
+
+            if error < best_error:
+                best_error = error
+                best_parameters = (rvec, tvec)
+        except Exception as e:
+            print(f"Combination {combo} failed: {e}")
+            continue
+
+    return best_parameters
+
+def rvec_tvec_to_camera_pose(rvec, tvec):
+    R, _ = cv2.Rodrigues(rvec)
+    camera_position = -R.T @ tvec
+    return camera_position, R.T
 
 def rotate_vector(vector, rotation):
     """
