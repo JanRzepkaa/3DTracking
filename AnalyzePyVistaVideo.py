@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from Calibration import simulate_camera
+from Calibration import projectPoints
 
 class AnalyzePyVistaVideo:
     def __init__(self, show_window=True):
@@ -82,7 +82,7 @@ class AnalyzePyVistaVideo:
         cv2.putText(frame, text, (centroid[0] + 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
     
     def write_simulated_coordinates(self, frame, coordinates):
-        sim_coridinates, norm = simulate_camera(
+        sim_coridinates, norm = projectPoints(
             ball_position=self.ball_position,
             camera_position=self.camera_position,
             camera_rotation=self.camera_rotation,
@@ -90,7 +90,7 @@ class AnalyzePyVistaVideo:
         )
     
         text = f"Sim({sim_coridinates[0]:.0f}, {sim_coridinates[1]:.0f})"
-        text2 = f"Norm({norm[0]:.2f}, {norm[1]:.2f})"
+        text2 = f"Norm({norm[0]:.0f}, {norm[1]:.0f})"
         cv2.putText(frame, text, (coordinates[0] + 10, coordinates[1] + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
         cv2.putText(frame, text2, (coordinates[0] + 10, coordinates[1] + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 

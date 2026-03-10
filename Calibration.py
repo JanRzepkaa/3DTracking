@@ -45,23 +45,6 @@ def rotate_vector(vector, rotation):
 
     return rotated_vector
 
-def euler_to_rvec_scipy(euler_angles, order='xyz', degrees=False):
-    """
-    Converts Euler angles to an OpenCV rvec using SciPy.
-    
-    euler_angles: list or array of 3 angles [x, y, z]
-    order: string specifying rotation order (e.g., 'xyz', 'zyx')
-    degrees: True if input is in degrees, False if radians
-    """
-    # 1. Create a Rotation object from Euler angles
-    rot = R.from_euler(order, euler_angles, degrees=degrees)
-    
-    # 2. SciPy can output the rotation vector (rvec) directly
-    rvec = rot.as_rotvec()
-    
-    # Reshape to 3x1 to match OpenCV's exact expected format
-    return rvec.reshape(3, 1)
-
 def euler_to_rvec_cv2(theta_x, theta_y, theta_z):
     """
     Converts Euler angles (in radians) to an rvec using pure NumPy/OpenCV.
@@ -108,7 +91,7 @@ def projectPoints(ball_position, camera_position, camera_rotation, camera_intrin
     cam_pos = np.array(camera_position, dtype=np.float64)
 
     # 1. Get rvec and extract the 3x3 Rotation Matrix (R)
-    rvec = euler_to_rvec_scipy(camera_rotation)
+    rvec = euler_to_rvec_cv2(*camera_rotation)
     R, _ = cv2.Rodrigues(rvec)
 
     # 2. CORRECT TVEC CALCULATION
@@ -158,5 +141,5 @@ if __name__ == "__main__":
     camera_position = np.array([0, 0, 0])
     camera_rotation = (0, 0, 0) # Rotate 90 degrees around z-axis
     camera_intrinsics = (1000, 1000, 640, 480) # Example camera intrinsics
-    pixel_x, pixel_y = simulate_camera(ball_position, camera_position, camera_rotation, camera_intrinsics)
+    pixel_x, pixel_y = projectPoints(ball_position, camera_position, camera_rotation, camera_intrinsics)
     print("Pixel coordinates:", (pixel_x, pixel_y))
