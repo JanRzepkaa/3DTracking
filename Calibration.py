@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import math
 from scipy.spatial.transform import Rotation as R
+from itertools import permutations
 
 def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_positions, camera_intrinsics):
     """
@@ -23,19 +24,19 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
 
     def solve_pnp(object_points, image_points, camera_matrix):
         dist_coeffs = np.zeros((4,1)) # Assuming no lens distortion
-        success, rvec, tvec = cv2.solvePnP(object_points, image_points, camera_matrix, dist_coeffs)
+        success, rvec, tvec = cv2.solvePnP(object_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_SQPNP)
         if not success:
             raise ValueError("Could not solve PnP")
         return rvec.flatten(), tvec.flatten()
 
     # Run through all combinations of 3 balls
-    from itertools import combinations
     best_error = float('inf')
     best_parameters = None
+    best_combo = None
 
-    for combo in combinations(range(len(true_positions)), 3):
+    for combo in permutations(range(len(true_positions))):
         try:
-            rvec, tvec = solve_pnp(object_points[list(combo)], image_points[list(combo)], camera_matrix)
+            rvec, tvec = solve_pnp(object_points[list(range(len(true_positions)))], image_points[list(combo)], camera_matrix)
 
             # Project all object points using the estimated parameters
             projected_points, _ = cv2.projectPoints(object_points, rvec, tvec, camera_matrix, distCoeffs=None)
@@ -47,11 +48,15 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
             if error < best_error:
                 best_error = error
                 best_parameters = (rvec, tvec)
+                best_combo = combo
+
+            print(rvec_tvec_to_camera_pose(rvec, tvec)[0], error)
         except Exception as e:
             print(f"Combination {combo} failed: {e}")
             continue
+    
 
-    return best_parameters
+    return best_parameters, best_combo, best_error
 
 def rvec_tvec_to_camera_pose(rvec, tvec):
     R, _ = cv2.Rodrigues(rvec)
