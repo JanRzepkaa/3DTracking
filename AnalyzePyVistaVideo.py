@@ -6,6 +6,7 @@ class AnalyzePyVistaVideo:
     def __init__(self, show_window=True):
         self.window_name = "PyVista Video Analysis"
         self.show_window = show_window
+        self.last_frame = None
 
     def initialaze_calibration_test_data(self, ball_position, camera_position, camera_rotation, camera_intrinsics):
         self.ball_position = ball_position
@@ -20,6 +21,7 @@ class AnalyzePyVistaVideo:
     def update(self, frame):
         if self.show_window:
             cv2.imshow(self.window_name, frame)
+            self.last_frame = frame
     
     def shutdown(self):
         cv2.destroyAllWindows()
@@ -31,14 +33,14 @@ class AnalyzePyVistaVideo:
 
             new_frame = img_bgr.copy() # Create a copy for drawing
             
-            contours, centers = self.find_and_draw_centroids(new_frame)
+            contours, centers = self.find_centroids_and_contours(new_frame)
             self.draw_contours(new_frame, contours)
             self.draw_all_ceneters(new_frame, centers)
             
             # 4. Display the processed frame
             self.update(new_frame)
 
-    def find_centroids(self, frame):
+    def find_centroids_and_contours(self, frame):
         # 2. Isolate the color of interest (e.g., green)
         lower_green = np.array([40, 100, 100])
         upper_green = np.array([80, 255, 255])
@@ -111,7 +113,7 @@ class AnalyzePyVistaVideo:
         else:
             self.startWindow()
 
-    def find_camera_position_and_rotation_from_3_fixed_balls(self, frame, ball_positions):
+    def find_camera_position_and_rotation_from_3_fixed_balls(self, ball_positions):
         """
         Given the 3D positions of 3 fixed balls in the world and their corresponding 2D pixel coordinates in the camera view,
         find the position and rotation of the camera.
@@ -119,13 +121,16 @@ class AnalyzePyVistaVideo:
 
         video_positions = []
 
-        _, centers = self.find_centroids(frame)
+        _, centers = self.find_centroids_and_contours(self.last_frame)
         for center in centers:
             video_positions.append(center)
 
-        solved_pnp = find_camera_position_and_rotation_from_3_fixed_balls(
+        solved_pnp, best_combo, best_error = find_camera_position_and_rotation_from_3_fixed_balls(
             true_positions=ball_positions,
             video_positions=video_positions,
             camera_intrinsics=self.camera_intrinsics)
         
-        return solved_pnp
+        camera_position, camera_rotation = rvec_tvec_to_camera_pose(solved_pnp[0], solved_pnp[1])
+        print(f"Best combo: {best_combo}, Reprojection error: {best_error}")
+
+        return camera_position, camera_rotation
