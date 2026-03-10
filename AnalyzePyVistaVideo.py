@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from Calibration import projectPoints
+from Calibration import *
 
 class AnalyzePyVistaVideo:
     def __init__(self, show_window=True):
@@ -31,12 +31,14 @@ class AnalyzePyVistaVideo:
 
             new_frame = img_bgr.copy() # Create a copy for drawing
             
-            self.find_and_draw_centroids(new_frame)
+            contours, centers = self.find_and_draw_centroids(new_frame)
+            self.draw_contours(new_frame, contours)
+            self.draw_all_ceneters(new_frame, centers)
             
             # 4. Display the processed frame
             self.update(new_frame)
 
-    def find_and_draw_centroids(self, frame):
+    def find_centroids(self, frame):
         # 2. Isolate the color of interest (e.g., green)
         lower_green = np.array([40, 100, 100])
         upper_green = np.array([80, 255, 255])
@@ -44,10 +46,9 @@ class AnalyzePyVistaVideo:
 
         # Find contours and centroids
         contours = self.find_contours(thresh)
-        self.draw_contours(frame, contours)
-        self.draw_all_ceneters(frame, contours)
-
-
+        centers = self.find_all_ceneters(contours)
+        return contours, centers
+        
     def isolate_color(self, img_bgr, color_range):
         # Convert BGR to HSV
         img_hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
@@ -59,6 +60,9 @@ class AnalyzePyVistaVideo:
         contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         return contours
 
+    def draw_contours(self, frame, contours):
+        cv2.drawContours(frame, contours, -1, (255, 0, 0), 2)  # Draw blue contours
+
     def find_centroid(self, contour):
         M = cv2.moments(contour)
         if M["m00"] != 0:
@@ -68,14 +72,20 @@ class AnalyzePyVistaVideo:
         else:
             return None
         
-    def draw_all_ceneters(self, frame, contours):
+    def find_all_ceneters(self, contours):
+        centers = []
         for contour in contours:
             if cv2.contourArea(contour) > 100:  # Filter small contours
                 centroid = self.find_centroid(contour)
                 if centroid is not None:
-                    cv2.circle(frame, centroid, 10, (0, 0, 255), -1)  # Draw green circle at centroid
-                    self.write_pixel_coordinates(frame, centroid)
-                    self.write_simulated_coordinates(frame, centroid)  # Placeholder for simulated coordinates
+                    centers.append(centroid)
+        return centers
+    
+    def draw_all_ceneters(self, frame, centers):
+        for center in centers:
+            cv2.circle(frame, center, 10, (0, 0, 255), -1)  # Draw red circle at centroid
+            self.write_pixel_coordinates(frame, center)
+            self.write_simulated_coordinates(frame, center)  # Placeholder for simulated coordinates
 
     def write_pixel_coordinates(self, frame, centroid):
         text = f"({centroid[0]}, {centroid[1]})"
@@ -94,12 +104,28 @@ class AnalyzePyVistaVideo:
         cv2.putText(frame, text, (coordinates[0] + 10, coordinates[1] + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
         cv2.putText(frame, text2, (coordinates[0] + 10, coordinates[1] + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
-    def draw_contours(self, frame, contours):
-        cv2.drawContours(frame, contours, -1, (255, 0, 0), 2)  # Draw blue contours
-
     def change_visibility(self, show):
         self.show_window = show
         if not show:
             self.shutdown()
         else:
             self.startWindow()
+
+    def find_camera_position_and_rotation_from_3_fixed_balls(self, frame, ball_positions):
+        """
+        Given the 3D positions of 3 fixed balls in the world and their corresponding 2D pixel coordinates in the camera view,
+        find the position and rotation of the camera.
+        """
+
+        video_positions = []
+
+        _, centers = self.find_centroids(frame)
+        for center in centers:
+            video_positions.append(center)
+
+        solved_pnp = find_camera_position_and_rotation_from_3_fixed_balls(
+            true_positions=ball_positions,
+            video_positions=video_positions,
+            camera_intrinsics=self.camera_intrinsics)
+        
+        return solved_pnp
