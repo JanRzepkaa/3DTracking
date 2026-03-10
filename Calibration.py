@@ -1,5 +1,7 @@
 import numpy as np
-
+import cv2
+import math
+from scipy.spatial.transform import Rotation as R
 
 def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_positions, camera_intrinsics):
     """
@@ -43,41 +45,49 @@ def rotate_vector(vector, rotation):
 
     return rotated_vector
 
-def find_euler_angles_between_vectors(v1, v2):
+def euler_to_rvec_scipy(euler_angles, order='xyz', degrees=False):
     """
-        Find the euler angles between two vectors. 
-        This is used to find the rotation needed to align one vector with another.
-
-        Parameters:
-            v1: (x, y, z) first vector
-            v2: (x, y, z) second vector
-        Returns:
-            (theta_x, theta_y, theta_z) euler angles representing the rotation in radians
-    """
-    # Normalize the vectors
-    v1_norm = v1 / np.linalg.norm(v1)
-    v2_norm = v2 / np.linalg.norm(v2)
-
-    # Calculate the cross product and dot product
-    cross_prod = np.cross(v1_norm, v2_norm)
-    dot_prod = np.dot(v1_norm, v2_norm)
-
-    # Calculate the angle between the vectors
-    angle = np.arccos(dot_prod)
-
-    # Calculate the rotation axis
-    if np.linalg.norm(cross_prod) < 1e-6:
-        # Vectors are parallel, no rotation needed
-        return (0, 0, 0)
+    Converts Euler angles to an OpenCV rvec using SciPy.
     
-    rotation_axis = cross_prod / np.linalg.norm(cross_prod)
+    euler_angles: list or array of 3 angles [x, y, z]
+    order: string specifying rotation order (e.g., 'xyz', 'zyx')
+    degrees: True if input is in degrees, False if radians
+    """
+    # 1. Create a Rotation object from Euler angles
+    rot = R.from_euler(order, euler_angles, degrees=degrees)
+    
+    # 2. SciPy can output the rotation vector (rvec) directly
+    rvec = rot.as_rotvec()
+    
+    # Reshape to 3x1 to match OpenCV's exact expected format
+    return rvec.reshape(3, 1)
 
-    # Convert the rotation axis and angle to euler angles
-    theta_x = rotation_axis[0] * angle
-    theta_y = rotation_axis[1] * angle
-    theta_z = rotation_axis[2] * angle
-
-    return (theta_x, theta_y, theta_z)
+def euler_to_rvec_cv2(theta_x, theta_y, theta_z):
+    """
+    Converts Euler angles (in radians) to an rvec using pure NumPy/OpenCV.
+    Assumes rotation order X -> Y -> Z.
+    """
+    # 1. Calculate rotation matrices for each axis
+    R_x = np.array([[1, 0, 0],
+                    [0, math.cos(theta_x), -math.sin(theta_x)],
+                    [0, math.sin(theta_x), math.cos(theta_x)]])
+                    
+    R_y = np.array([[math.cos(theta_y), 0, math.sin(theta_y)],
+                    [0, 1, 0],
+                    [-math.sin(theta_y), 0, math.cos(theta_y)]])
+                    
+    R_z = np.array([[math.cos(theta_z), -math.sin(theta_z), 0],
+                    [math.sin(theta_z), math.cos(theta_z), 0],
+                    [0, 0, 1]])
+                    
+    # 2. Multiply them together to get the final 3x3 rotation matrix
+    # Order matters here! R = R_z * R_y * R_x
+    R_combined = np.dot(R_z, np.dot(R_y, R_x))
+    
+    # 3. Convert the 3x3 matrix to a 3x1 rvec using Rodrigues
+    rvec, _ = cv2.Rodrigues(R_combined)
+    
+    return rvec
 
 def simulate_camera(ball_position, camera_position, camera_rotation, camera_intrinsics):
     """
@@ -94,6 +104,22 @@ def simulate_camera(ball_position, camera_position, camera_rotation, camera_intr
             (x, y) position of the ball in the camera's image plane
     """
 
+    true_pts = np.array([ball_position], dtype=np.float32)
+    rvec = euler_to_rvec_scipy(camera_rotation)
+    tvec = np.array(camera_position, dtype=np.float32)
+    
+    fx, fy, cx, cy = camera_intrinsics
+    camera_matrix = np.array([[fx, 0, cx],
+                              [0, fy, cy],
+                              [0, 0, 1]], dtype=np.float32)
+
+
+    res = cv2.projectPoints(true_pts, rvec, tvec, camera_matrix, distCoeffs=None)
+
+    #print("Projected points using OpenCV:", res)
+
+    return res[0].flatten(), (0, 0)
+
     # Convert to numpy
     ball_position = np.asarray(ball_position)
     camera_position = np.asarray(camera_position)
@@ -102,17 +128,16 @@ def simulate_camera(ball_position, camera_position, camera_rotation, camera_intr
     camera_to_ball = ball_position - camera_position
     
     camera_to_ball_rotated = rotate_vector(camera_to_ball, -np.array(camera_rotation))
- 
     X, Y, Z = camera_to_ball_rotated
+    
+    if Z <= 0:
+        return None, None
  
     # 4. Perspective projection
     x = - X / Z
     y = - Y / Z
 
-    #print(x,y)
-
     # 5. Apply camera intrinsics
-    fx, fy, cx, cy = camera_intrinsics
 
     pixel_x = fx * x + cx
     pixel_y = fy * y + cy
