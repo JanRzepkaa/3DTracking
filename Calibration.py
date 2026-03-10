@@ -94,20 +94,32 @@ def simulate_camera(ball_position, camera_position, camera_rotation, camera_intr
             (x, y) position of the ball in the camera's image plane
     """
 
+    # Convert to numpy
+    ball_position = np.asarray(ball_position)
+    camera_position = np.asarray(camera_position)
+
     # Create a 3D vector from camera to center of the ball
     camera_to_ball = ball_position - camera_position
     
-    camera_to_ball_rotated = rotate_vector(camera_to_ball, camera_rotation)
-    print("Camera to ball vector after rotation:", camera_to_ball_rotated)
+    camera_to_ball_rotated = rotate_vector(camera_to_ball, -np.array(camera_rotation))
+ 
+    X, Y, Z = camera_to_ball_rotated
+ 
+    # 4. Perspective projection
+    x = - X / Z
+    y = - Y / Z
 
-    normalized_xy = camera_to_ball_rotated[:2] / camera_to_ball_rotated[2]
-    print("Normalized image plane coordinates:", normalized_xy)
+    #print(x,y)
 
+    # 5. Apply camera intrinsics
     fx, fy, cx, cy = camera_intrinsics
-    pixel_x = fx * normalized_xy[0] + cx
-    pixel_y = fy * normalized_xy[1] + cy
 
-    return (pixel_x, pixel_y)
+    pixel_x = fx * x + cx
+    pixel_y = fy * y + cy
+
+    # Currently 0, 0 
+
+    return (pixel_x, pixel_y), (x, y)
 
 
 if __name__ == "__main__":
