@@ -1,10 +1,17 @@
 import cv2
 import numpy as np
+from Calibration import simulate_camera
 
 class AnalyzePyVistaVideo:
     def __init__(self, show_window=True):
         self.window_name = "PyVista Video Analysis"
         self.show_window = show_window
+
+    def initialaze_calibration_test_data(self, ball_position, camera_position, camera_rotation, camera_intrinsics):
+        self.ball_position = ball_position
+        self.camera_position = camera_position
+        self.camera_rotation = camera_rotation
+        self.camera_intrinsics = camera_intrinsics
 
     def startWindow(self):
         if self.show_window:
@@ -67,6 +74,25 @@ class AnalyzePyVistaVideo:
                 centroid = self.find_centroid(contour)
                 if centroid is not None:
                     cv2.circle(frame, centroid, 10, (0, 0, 255), -1)  # Draw green circle at centroid
+                    self.write_pixel_coordinates(frame, centroid)
+                    self.write_simulated_coordinates(frame, centroid)  # Placeholder for simulated coordinates
+
+    def write_pixel_coordinates(self, frame, centroid):
+        text = f"({centroid[0]}, {centroid[1]})"
+        cv2.putText(frame, text, (centroid[0] + 10, centroid[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+    
+    def write_simulated_coordinates(self, frame, coordinates):
+        sim_coridinates = simulate_camera(
+            ball_position=self.ball_position,
+            camera_position=self.camera_position,
+            camera_rotation=self.camera_rotation,
+            camera_intrinsics=self.camera_intrinsics
+        )
+
+        print(self.ball_position)
+    
+        text = f"Sim({sim_coridinates[0]}, {sim_coridinates[1]})"
+        cv2.putText(frame, text, (coordinates[0] + 10, coordinates[1] - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
     def draw_contours(self, frame, contours):
         cv2.drawContours(frame, contours, -1, (255, 0, 0), 2)  # Draw blue contours
