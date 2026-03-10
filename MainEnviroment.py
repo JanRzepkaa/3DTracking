@@ -84,7 +84,7 @@ class Simulation:
     def add_all_meshes_to_plotter(self, local_plotter, subplot_index=None):
         if subplot_index is not None:
             local_plotter.subplot(0, subplot_index)
-        local_plotter.add_mesh(self.player_mesh, color="red")
+        local_plotter.add_mesh(self.player_mesh, color="lime")
         for s in self.static_spheres:
             local_plotter.add_mesh(s, color="cyan")
         local_plotter.add_mesh(self.pointer.vista, color="yellow")
