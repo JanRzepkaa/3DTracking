@@ -15,6 +15,13 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
 
     image_points = np.array(video_positions, dtype=np.float32)
 
+    assert object_points.shape[0] == image_points.shape[0], "Number of object points and image points must be the same"
+
+    print("Object points:\n", object_points)
+    print("Image points:\n", image_points)
+
+    N = object_points.shape[0]
+    
     fx, fy, cx, cy = camera_intrinsics
     camera_matrix = np.array([
         [fx,0,cx],
@@ -34,9 +41,9 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
     best_parameters = None
     best_combo = None
 
-    for combo in permutations(range(len(true_positions))):
+    for combo in permutations(range(N)):
         try:
-            rvec, tvec = solve_pnp(object_points[list(range(len(true_positions)))], image_points[list(combo)], camera_matrix)
+            rvec, tvec = solve_pnp(object_points[list(range(N))], image_points[list(combo)], camera_matrix)
 
             # Project all object points using the estimated parameters
             projected_points, _ = cv2.projectPoints(object_points, rvec, tvec, camera_matrix, distCoeffs=None)
