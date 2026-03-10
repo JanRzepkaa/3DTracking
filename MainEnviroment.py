@@ -16,13 +16,17 @@ class Simulation:
         self.player_position = np.array([0.0, 0.0, 1])
         # Create other static objects
         self.static_spheres = [
-            pv.Sphere(radius=0.3, center=(2, 0, 0)),
-            pv.Sphere(radius=0.3, center=(-2, 0, 1))
+            pv.Sphere(radius=0.1, center=(2, 0, 0)),
+            pv.Sphere(radius=0.1, center=(-2, 0, 1)),
+            pv.Sphere(radius=0.1, center=(-5, 0, 1)),
+            pv.Sphere(radius=0.1, center=(-2, -2, 2))
         ]
 
         self.positions_of_spheres = [
             np.array([2.0, 0.0, 0.0]),
-            np.array([-2.0, 0.0, 1.0])
+            np.array([-2.0, 0.0, 1.0]),
+            np.array([-5.0, 0.0, 1.0]),
+            np.array([-2.0, -2.0, 2.0])
         ]
 
         # Define camera positions
@@ -175,6 +179,8 @@ class Simulation:
 
         self.cv_window.startWindow()
 
+        i=0
+
         while self.running:
             self.animate_step()
             self.rotate_rod()
@@ -189,6 +195,14 @@ class Simulation:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 self.shutdown()
             time.sleep(0.01)
+            i+=1
+
+            if i%100==0:
+                all_positions = [self.player_position] + self.positions_of_spheres
+                res = self.cv_window.find_camera_position_and_rotation_from_3_fixed_balls(all_positions)
+                print("Estimated Camera Position and Rotation (rvec):", res)
+                print("Actual Camera Position:", self.camera_positions[2])
+
             
         print("Closing simulation...")
         self.cv_window.shutdown()
