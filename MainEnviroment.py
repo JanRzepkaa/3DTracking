@@ -1,8 +1,8 @@
 from VistaRod import Rod
-import pyvista as pv # type: ignore
-import numpy as np # type: ignore
+import pyvista as pv 
+import numpy as np 
 import time
-import cv2 # type: ignore
+import cv2 
 from AnalyzePyVistaVideo import AnalyzePyVistaVideo
 
 class Simulation:
@@ -37,7 +37,7 @@ class Simulation:
         # Add to plotter
 
         # 2. Setup the Plotter with 3 subplots
-        self.plotter = pv.Plotter(shape=(1, 3), window_size=(1500, 600), title="Real-Time Control")
+        self.plotter = pv.Plotter(shape=(1, 3), window_size=(1500, 400), title="Real-Time Control")
         self.hidden_plotter = pv.Plotter(off_screen=True, window_size=(1000, 400))  # Hidden plotter for off-screen rendering
 
         self.add_all_meshes_to_plotter(self.hidden_plotter)
@@ -46,6 +46,14 @@ class Simulation:
         self.hidden_plotter.camera.up = (0, 0, 1)
         self.hidden_plotter.camera.clipping_range = (0.6, 1000)
 
+        my_light = pv.Light(
+                position=(0, 50, 1), 
+                focal_point=(0, 0, 0), 
+                color='white',
+                light_type='scene light' # 'scene light' means it stays fixed in the 3D world
+            )
+        self.hidden_plotter.add_light(my_light)
+
         self.cv_window.initialaze_calibration_test_data(
             ball_position=self.player_position,
             camera_position=self.camera_positions[2],
@@ -53,8 +61,7 @@ class Simulation:
             camera_intrinsics=self.calculate_camera_intrinsics(self.hidden_plotter)
         )
 
-        print("Camera Intrinsics:", self.calculate_camera_intrinsics(self.hidden_plotter))
-
+        
         view = [(0, "View 1 Main"), (1, "View 2 Left"), (2, "View 3 Right")]
         for i, text in view:
             self.plotter.subplot(0, i)
@@ -78,10 +85,13 @@ class Simulation:
         cy = height / 2
 
         fovy = plotter.camera.view_angle
-        fovy_rad = np.deg2rad(fovy)
+        print("FOVY:", fovy)
+        fovy_rad = np.radians(fovy)
 
         fy = height / (2 * np.tan(fovy_rad / 2))
-        fx = fy * (width / height)
+        fx = fy #* (width / height)
+
+        print("Calculated Intrinsics - fx:", fx, "fy:", fy, "cx:", cx, "cy:", cy)
 
         camera_intrinsics = (fx, fy, cx, cy)
         return camera_intrinsics
