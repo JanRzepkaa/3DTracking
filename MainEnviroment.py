@@ -86,7 +86,7 @@ class Simulation:
             local_plotter.subplot(0, subplot_index)
         local_plotter.add_mesh(self.player_mesh, color="lime")
         for s in self.static_spheres:
-            local_plotter.add_mesh(s, color="cyan")
+            local_plotter.add_mesh(s, color="lime")
         local_plotter.add_mesh(self.pointer.vista, color="yellow")
 
         self.plotter.add_mesh(pv.Cone(center=self.camera_positions[1], direction=(1,0,0)), color="green", opacity=0.9)

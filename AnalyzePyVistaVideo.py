@@ -31,11 +31,8 @@ class AnalyzePyVistaVideo:
 
             # Find contours and centroids
             contours = self.find_contours(thresh)
-            for contour in contours:
-                if cv2.contourArea(contour) > 100:  # Filter small contours
-                    centroid = self.find_centroid(contour)
-                    if centroid is not None:
-                        cv2.circle(new_frame, centroid, 10, (0, 0, 255), -1)  # Draw green circle at centroid
+            self.draw_contours(new_frame, contours)
+            self.draw_all_ceneters(new_frame, contours)
             
             # 4. Display the processed frame
             self.update(new_frame)
@@ -59,6 +56,16 @@ class AnalyzePyVistaVideo:
             return (cX, cY)
         else:
             return None
+        
+    def draw_all_ceneters(self, frame, contours):
+        for contour in contours:
+            if cv2.contourArea(contour) > 100:  # Filter small contours
+                centroid = self.find_centroid(contour)
+                if centroid is not None:
+                    cv2.circle(frame, centroid, 10, (0, 0, 255), -1)  # Draw green circle at centroid
+
+    def draw_contours(self, frame, contours):
+        cv2.drawContours(frame, contours, -1, (255, 0, 0), 2)  # Draw blue contours
 
     def change_visibility(self, show):
         self.show_window = show
