@@ -21,7 +21,6 @@ class AnalyzePyVistaVideo:
     def update(self, frame):
         if self.show_window:
             cv2.imshow(self.window_name, frame)
-            self.last_frame = frame
     
     def shutdown(self):
         cv2.destroyAllWindows()
@@ -30,6 +29,7 @@ class AnalyzePyVistaVideo:
         if screenshot is not None:
             # 3. Convert RGB to BGR for OpenCV (Fast NumPy operation)
             img_bgr = screenshot[:, :, ::-1]
+            self.last_frame = img_bgr.copy()  # Store the last frame for later use
 
             new_frame = img_bgr.copy() # Create a copy for drawing
             
@@ -77,7 +77,7 @@ class AnalyzePyVistaVideo:
     def find_all_ceneters(self, contours):
         centers = []
         for contour in contours:
-            if cv2.contourArea(contour) > 100:  # Filter small contours
+            if cv2.contourArea(contour) > 50:  # Filter small contours
                 centroid = self.find_centroid(contour)
                 if centroid is not None:
                     centers.append(centroid)
@@ -122,8 +122,7 @@ class AnalyzePyVistaVideo:
         video_positions = []
 
         _, centers = self.find_centroids_and_contours(self.last_frame)
-        for center in centers:
-            video_positions.append(center)
+        video_positions.extend(centers)
 
         solved_pnp, best_combo, best_error = find_camera_position_and_rotation_from_3_fixed_balls(
             true_positions=ball_positions,
