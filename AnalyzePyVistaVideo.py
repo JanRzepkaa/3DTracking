@@ -87,7 +87,7 @@ class AnalyzePyVistaVideo:
         for center in centers:
             cv2.circle(frame, center, 10, (0, 0, 255), -1)  # Draw red circle at centroid
             self.write_pixel_coordinates(frame, center)
-            self.write_simulated_coordinates(frame, center)  # Placeholder for simulated coordinates
+            #self.write_simulated_coordinates(frame, center)  # Placeholder for simulated coordinates
 
     def write_pixel_coordinates(self, frame, centroid):
         text = f"({centroid[0]}, {centroid[1]})"

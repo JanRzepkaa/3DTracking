@@ -15,28 +15,30 @@ class Simulation:
         self.virtual_env = VirtualEnviroment()
         # 1. Create the shared "Player" object
         # We save this as self.player so we can modify it later
-        self.player_mesh = pv.Sphere(radius=0.5, center=(0, 0, 1))
-        self.player_position = np.array([0.0, 0.0, 1])
+        self.player_position = np.array([0.0, 3.0, 1.0])
+        self.player_mesh = pv.Sphere(radius=0.5, center=tuple(self.player_position))
         # Create other static objects
-        self.static_spheres = [
-            pv.Sphere(radius=0.3, center=(2, 0, 0)),
-            pv.Sphere(radius=0.3, center=(-2, 0, 1)),
-            pv.Sphere(radius=0.3, center=(-5, 0, 1)),
-            #pv.Sphere(radius=0.3, center=(-2, -2, 2))
-        ]
 
         self.positions_of_spheres = [
-            np.array([2.0, 0.0, 0.0]),
-            np.array([-2.0, 0.0, 1.0]),
-            np.array([-5.0, 0.0, 1.0]),
+            np.array([2, 0, 0], dtype=np.float32),
+            np.array([-2, -1, 1], dtype=np.float32),
+            np.array([-5, 0, 1], dtype=np.float32),
             #np.array([-2.0, -2.0, 2.0])
         ]
 
+        self.static_spheres = [
+            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[0].copy())),
+            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[1].copy())),
+            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[2].copy())),
+            #pv.Sphere(radius=0.3, center=(-2, -2, 2))
+        ]
         # Define camera positions
         self.camera_positions = {
             0: (5, 5, 5),
             1: (8, 0, 2),
-            2: (0, 8, 1)
+            2: (0, 8, 1),
+            3: (6, 6, 7),
+            4: (-10, -10, 10)
         }
 
         self.pointer = Rod(length=4)
@@ -45,30 +47,29 @@ class Simulation:
 
         # 2. Setup the Plotter with 3 subplots
         self.plotter = pv.Plotter(shape=(1, 3), window_size=(1500, 400), title="Real-Time Control")
-        self.hidden_plotter = pv.Plotter(off_screen=True, window_size=(1000, 400))  # Hidden plotter for off-screen rendering
 
-        self.add_all_meshes_to_plotter(self.hidden_plotter)
-        self.hidden_plotter.camera.position = self.camera_positions[2]
-        self.hidden_plotter.camera.focal_point = (0, 0, 1)
-        self.hidden_plotter.camera.up = (0, 0, 1)
-        self.hidden_plotter.camera.clipping_range = (0.6, 1000)
+        self.camer_count = len(self.camera_positions)-1
 
-        my_light = pv.Light(
-                position=(0, 8, 1), 
+        self.hidden_plotters = []
+        for i in range(1, self.camer_count+1):
+            self.hidden_plotters.append(pv.Plotter(off_screen=True, window_size=(1000, 400)))
+            plt = self.hidden_plotters[i-1]
+
+            self.add_all_meshes_to_plotter(plt)
+            plt.camera.position = self.camera_positions[i]
+            plt.camera.focal_point = (0, 0, 0)
+            plt.camera.up = (0, 0, 1)
+            plt.camera.clipping_range = (0.6, 1000)
+
+            my_light = pv.Light(
+                position=self.camera_positions[i], 
                 focal_point=(0, 0, 0), 
                 color='white',
                 light_type='scene light' # 'scene light' means it stays fixed in the 3D world
             )
-        self.hidden_plotter.add_light(my_light)
+            plt.add_light(my_light)
 
-        self.cv_window.initialaze_calibration_test_data(
-            ball_position=self.player_position,
-            camera_position=self.camera_positions[2],
-            camera_rotation=(np.pi/2, 0, 0),
-            camera_intrinsics=self.calculate_camera_intrinsics(self.hidden_plotter)
-        )
-
-        self.virtual_env.initialize_calibration(1, [self.calculate_camera_intrinsics(self.hidden_plotter)])
+        self.virtual_env.initialize_calibration(self.camer_count, [self.calculate_camera_intrinsics(self.hidden_plotters[1])]*self.camer_count)
         
         view = [(0, "View 1 Main"), (1, "View 2 Left"), (2, "View 3 Right")]
         for i, text in view:
@@ -115,9 +116,15 @@ class Simulation:
             ("t", lambda: self.reset_cameras()),
             ("q", self.shutdown),
             ("v", self.change_cv_window_visibility),
-            ("1", lambda: self.add_frame_for_virtual_env_calibration(0)),
             ("c", lambda: self.calibrate_virtual_cameras())
         ]
+
+        for i in range(1, self.camer_count+1):
+            key_events.append(
+                (str(i if i < 3 else i + 1),
+                lambda i=i: self.add_frame_for_virtual_env_calibration(i-1))
+            )
+        
 
         for key, func in key_events:
             self.plotter.add_key_event(key, func)
@@ -127,14 +134,15 @@ class Simulation:
         self.cv_window.change_visibility(self.show_cv_window)
 
     def add_frame_for_virtual_env_calibration(self, camera_index):
-        img_rgb = self.hidden_plotter.screenshot(None, return_img=True)
+        img_rgb = self.hidden_plotters[camera_index].screenshot(None, return_img=True)
         img_bgr = img_rgb[:, :, ::-1].copy()
         _, screen_positon = self.cv_window.find_centroids_and_contours(img_bgr)
         all_true_positions = [self.player_position] + self.positions_of_spheres
         self.virtual_env.add_frame_for_calibration(all_true_positions, screen_positon, camera_index)
         
     def calibrate_virtual_cameras(self):
-        self.virtual_env.calibrate_camera(0)
+        for i in range(self.camer_count):
+            self.virtual_env.calibrate_camera(i)
 
     def add_all_meshes_to_plotter(self, local_plotter, subplot_index=None):
         if subplot_index is not None:
@@ -172,7 +180,7 @@ class Simulation:
         current_angle = np.arctan(pos[1]/pos[0])
         if pos[0]<0:
             current_angle+=np.pi
-        current_angle+=0.01
+        current_angle+=speed
 
         new_x = dist_from_center*np.cos(current_angle)
         new_y = dist_from_center*np.sin(current_angle)
@@ -192,6 +200,8 @@ class Simulation:
     def start(self):
         self.reset_cameras()
         self.plotter.show(interactive_update=True)
+        for i in range(self.camer_count):
+                self.hidden_plotters[i].show(interactive_update=True)
         self.virtual_env.show_plotter()
 
         self.cv_window.startWindow()
@@ -201,10 +211,11 @@ class Simulation:
             self.animate_step(1, 0.03)
             self.rotate_rod()
             self.plotter.update()
-            self.hidden_plotter.update()
+            for i in range(self.camer_count):
+                self.hidden_plotters[i].update()
             self.virtual_env.update_plotter()
 
-            img_rgb = self.hidden_plotter.screenshot(None, return_img=True)
+            img_rgb = self.hidden_plotters[3].screenshot(None, return_img=True)
 
             self.cv_window.update_from_pyvista_screenshot(img_rgb)
 
