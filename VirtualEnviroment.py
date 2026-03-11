@@ -8,7 +8,42 @@ class VirtualEnviroment:
         self.plotter = pv.Plotter(shape=(1, 2), window_size=(1500, 400), title="Real-Time Control")
 
         self.plotter.subplot(0, 0)
-        self.plotter.show_grid()
+        self.plotter.show_grid(bounds = (-5.0, 10.0, -5.0, 10.0, 0.0, 5.0))
+
+        self.frustum_actors = []
+
+    def add_camera_frustum(self):
+        # 1. Generate the base frustum at the world origin
+        camera_frustum = create_camera_frustum(scale=1)
+
+        self.plotter.subplot(0, 0)
+        # 2. Add it to the plotter as a wireframe and save the actor
+        self.frustum_actors.append(
+            self.plotter.add_mesh(
+                camera_frustum, 
+                style='wireframe',  # Makes it transparent with lines
+                color='cyan', 
+                line_width=3
+            )
+        )
+
+    def update_camera_frustum(self, camera_index, camera_position, R_matrix):
+        """
+        Teleports and rotates the wireframe frustum to match the solved camera pose.
+        """
+        # 1. Create a blank 4x4 identity matrix
+        transform_matrix = np.eye(4, dtype=np.float64)
+        
+        # 2. Slot in the 3x3 Rotation Matrix
+        # We transpose it (.T) because R_matrix maps World -> Camera.
+        # To move a 3D object, we need to map Camera -> World.
+        transform_matrix[:3, :3] = R_matrix.T
+        
+        # 3. Slot in the 3D Camera Position (Translation)
+        transform_matrix[:3, 3] = camera_position
+        
+        # 4. Apply the transformation directly to the actor's GPU memory
+        self.frustum_actors[camera_index].user_matrix = transform_matrix
 
     def show_plotter(self):
         self.plotter.show(interactive_update=True)
@@ -26,6 +61,8 @@ class VirtualEnviroment:
         self.cameras_intrinsics = cameras_intrinsics # (camera_count, 3, 3)
         self.cameras_positions = [[0, 0, 0] for i in range(camera_count)]
         self.cameras_rotations = [[] for i in range(camera_count)]
+        for i in range(camera_count):
+            self.add_camera_frustum()
 
     def add_frame_for_calibration(self, true_pos, screen_pos, camera_index):
         a, b = copy.deepcopy(true_pos), copy.deepcopy(screen_pos)
@@ -134,10 +171,45 @@ class VirtualEnviroment:
 
         self.plotter.subplot(0, camera_index+1)
         self.plotter.show_grid()
-        
+
         self.plotter.camera.position = pos
         self.plotter.camera.focal_point = focal_pt
         self.plotter.camera.up = up_vector
         self.plotter.camera.clipping_range = (0.6, 1000)
 
+        self.update_camera_frustum(camera_index, pos, R)
+
         print(pos, focal_pt, up_vector)
+
+
+
+
+def create_camera_frustum(scale=2.0, aspect_ratio=2.5):
+    """
+    Creates a wireframe pyramid representing a camera's field of view.
+    scale: How long the camera frustum is drawn in the 3D world.
+    """
+    z = scale
+    x = scale * 0.5 * aspect_ratio
+    y = scale * 0.5
+    
+    # Define the 5 points of the camera
+    points = np.array([
+        [0, 0, 0],       # Point 0: The Camera Lens (Origin)
+        [-x, -y, z],     # Point 1: Top-Left
+        [x, -y, z],      # Point 2: Top-Right
+        [x, y, z],       # Point 3: Bottom-Right
+        [-x, y, z]       # Point 4: Bottom-Left
+    ], dtype=np.float64)
+    
+    # Define the faces connecting the points
+    # The first number is how many points make up the face, followed by the point indices
+    faces = np.hstack([
+        [4, 1, 2, 3, 4], # The rectangular "screen" base
+        [3, 0, 1, 2],    # Top triangle
+        [3, 0, 2, 3],    # Right triangle
+        [3, 0, 3, 4],    # Bottom triangle
+        [3, 0, 4, 1]     # Left triangle
+    ])
+    
+    return pv.PolyData(points, faces)
