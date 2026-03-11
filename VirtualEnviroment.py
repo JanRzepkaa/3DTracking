@@ -37,7 +37,7 @@ class VirtualEnviroment:
         # 2. Slot in the 3x3 Rotation Matrix
         # We transpose it (.T) because R_matrix maps World -> Camera.
         # To move a 3D object, we need to map Camera -> World.
-        transform_matrix[:3, :3] = R_matrix.T
+        transform_matrix[:3, :3] = R_matrix
         
         # 3. Slot in the 3D Camera Position (Translation)
         transform_matrix[:3, 3] = camera_position
@@ -138,6 +138,9 @@ class VirtualEnviroment:
         camera_intrinsics = self.cameras_intrinsics[camera_index]
         camera_matrix = intrictics_to_matrix(camera_intrinsics)
         print(len(true_solved_frames), len(screen_solved_frames))
+        if len(screen_solved_frames) < 4:
+            return
+        
         rvec, tvec, inliers = solve_global_camera_ransac(true_solved_frames, screen_solved_frames, camera_matrix)
 
         camera_position_ransac, camera_rotation_ransac = rvec_tvec_to_camera_pose(rvec, tvec)
@@ -157,25 +160,25 @@ class VirtualEnviroment:
 
         pos = np.array(pos, dtype=np.float64).flatten()
         R = np.array(rot, dtype=np.float64)
-        
+
         # 1. Extract the Forward vector (3rd row of R)
-        forward_vector = R[2, :]
+        forward_vector = R.T[2, :]
         
         # 2. Extract the Down vector (2nd row of R) and invert it to get Up
-        down_vector = R[1, :]
+        down_vector = R.T[1, :]
         up_vector = -down_vector
         
         # 3. Calculate the focal point (what the camera is looking at)
         # We just add the forward vector to the camera's position
-        focal_pt = pos + forward_vector
+        focal_pt = pos + 3*forward_vector
 
-        self.plotter.subplot(0, camera_index+1)
-        self.plotter.show_grid()
-
-        self.plotter.camera.position = pos
-        self.plotter.camera.focal_point = focal_pt
-        self.plotter.camera.up = up_vector
-        self.plotter.camera.clipping_range = (0.6, 1000)
+        #self.plotter.subplot(0, camera_index+1)
+        #self.plotter.show_grid()
+#
+        #self.plotter.camera.position = pos
+        #self.plotter.camera.focal_point = focal_pt
+        #self.plotter.camera.up = up_vector
+        #self.plotter.camera.clipping_range = (0.6, 1000)
 
         self.update_camera_frustum(camera_index, pos, R)
 
@@ -199,7 +202,8 @@ def create_camera_frustum(scale=2.0, aspect_ratio=2.5):
         [-x, -y, z],     # Point 1: Top-Left
         [x, -y, z],      # Point 2: Top-Right
         [x, y, z],       # Point 3: Bottom-Right
-        [-x, y, z]       # Point 4: Bottom-Left
+        [-x, y, z],      # Point 4: Bottom-Left
+        [0, -y*1.5, z],  # Point 5: Middle
     ], dtype=np.float64)
     
     # Define the faces connecting the points
@@ -209,7 +213,8 @@ def create_camera_frustum(scale=2.0, aspect_ratio=2.5):
         [3, 0, 1, 2],    # Top triangle
         [3, 0, 2, 3],    # Right triangle
         [3, 0, 3, 4],    # Bottom triangle
-        [3, 0, 4, 1]     # Left triangle
+        [3, 0, 4, 1],     # Left triangle
+        [3, 1, 2, 5]
     ])
     
     return pv.PolyData(points, faces)
