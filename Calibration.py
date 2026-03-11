@@ -115,13 +115,13 @@ def solve_global_camera_ransac(all_object_points, all_image_points, camera_matri
 def check_if_we_can_reject_solution(rvec, tvec):
     R, _ = cv2.Rodrigues(rvec)
 
-    r_31 = R[2, 0] 
-    r_32 = R[2, 1]
+    r_31 = R[0, 2] 
+    r_32 = R[1, 2]
     # 3. Apply the Zero-Roll Constraint
     # We use a small tolerance (e.g., 0.1) instead of exactly 0 to account 
     # for floating-point inaccuracies during the optimization process.
     # An r_31 of 0.1 equates to about 5.7 degrees of roll.
-    roll_tolerance = 0.1
+    roll_tolerance = 0.05
     if abs(r_31) > roll_tolerance:
         return True # Reject: Camera is tilted sideways
     
