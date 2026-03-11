@@ -5,7 +5,19 @@ import copy
 
 class VirtualEnviroment:
     def __init__(self):
-        self.plotter = pv.Plotter(shape=(1, 3), window_size=(1500, 400), title="Real-Time Control")
+        self.plotter = pv.Plotter(shape=(1, 2), window_size=(1500, 400), title="Real-Time Control")
+
+        self.plotter.subplot(0, 0)
+        self.plotter.show_grid()
+
+    def show_plotter(self):
+        self.plotter.show(interactive_update=True)
+
+    def update_plotter(self):
+        self.plotter.update()
+
+    def close_plotter(self):
+        self.plotter.close()
 
     def initialize_calibration(self, camera_count, cameras_intrinsics):
         self.calibration_info = [[] for i in range(camera_count)]
@@ -120,6 +132,9 @@ class VirtualEnviroment:
         # We just add the forward vector to the camera's position
         focal_pt = pos + forward_vector
 
+        self.plotter.subplot(0, camera_index+1)
+        self.plotter.show_grid()
+        
         self.plotter.camera.position = pos
         self.plotter.camera.focal_point = focal_pt
         self.plotter.camera.up = up_vector

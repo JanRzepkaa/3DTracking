@@ -192,6 +192,7 @@ class Simulation:
     def start(self):
         self.reset_cameras()
         self.plotter.show(interactive_update=True)
+        self.virtual_env.show_plotter()
 
         self.cv_window.startWindow()
 
@@ -201,6 +202,7 @@ class Simulation:
             self.rotate_rod()
             self.plotter.update()
             self.hidden_plotter.update()
+            self.virtual_env.update_plotter()
 
             img_rgb = self.hidden_plotter.screenshot(None, return_img=True)
 
@@ -215,6 +217,7 @@ class Simulation:
         print("Closing simulation...")
         self.cv_window.shutdown()
         self.plotter.close()
+        self.virtual_env.close_plotter()
 
 
     def shutdown(self):
