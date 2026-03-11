@@ -79,6 +79,11 @@ def solve_global_camera_ransac(all_object_points, all_image_points, camera_matri
     all_object_points: shape (N, 3) 
     all_image_points: shape (N, 2)
     """
+    all_object_points = np.array(all_object_points, dtype=np.float32)
+
+    all_image_points = np.array(all_image_points, dtype=np.float32)
+
+
     dist_coeffs = np.zeros((4,1))
     
     # 1. RANSAC Parameters
