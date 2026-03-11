@@ -43,6 +43,20 @@ class VirtualEnviroment:
 
         return camera_position, camera_rotation, sorted_screen_pos
 
+    def compile_list_of_all_solved_frames(self, camera_index):
+        true_solved_frames = []
+        screen_solved_frames = []
+        N = len(self.already_solved_frames[camera_index])
+
+        for i in range(N):
+            if self.already_solved_frames[camera_index][i] is None:
+                continue
+            temp = self.calibration_info[camera_index][i]
+            true_solved_frames.extend(temp[0])
+            screen_solved_frames.extend(temp[1])
+
+        return true_solved_frames, screen_solved_frames
+ 
     def calibrate_camera(self, camera_index):
         """
             Find the best position based on info from many frames
@@ -68,5 +82,14 @@ class VirtualEnviroment:
                 self.already_solved_frames[camera_index].append((res[0], res[1]))
             else:
                 self.already_solved_frames[camera_index].append(None)
+
+        true_solved_frames, screen_solved_frames = self.compile_list_of_all_solved_frames(camera_index)
+        camera_intrinsics = self.cameras_intrinsics[camera_index]
+        camera_matrix = intrictics_to_matrix(camera_intrinsics)
+        print(len(true_solved_frames), len(screen_solved_frames))
+        rvec, tvec, inliers = solve_global_camera_ransac(true_solved_frames, screen_solved_frames, camera_matrix)
+
+        camera_position, camera_rotation = rvec_tvec_to_camera_pose(rvec, tvec)
+        print(f"Position found by Ransac: {camera_position}")
 
 
