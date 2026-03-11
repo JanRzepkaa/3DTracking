@@ -12,6 +12,8 @@ class VirtualEnviroment:
         self.already_solved_frames = [[] for i in range(camera_count)]
         # Single entry = (true_position, screen_position)
         self.cameras_intrinsics = cameras_intrinsics # (camera_count, 3, 3)
+        self.cameras_positions = [[0, 0, 0] for i in range(camera_count)]
+        self.cameras_rotations = [[] for i in range(camera_count)]
 
     def add_frame_for_calibration(self, true_pos, screen_pos, camera_index):
         a, b = copy.deepcopy(true_pos), copy.deepcopy(screen_pos)
@@ -89,7 +91,38 @@ class VirtualEnviroment:
         print(len(true_solved_frames), len(screen_solved_frames))
         rvec, tvec, inliers = solve_global_camera_ransac(true_solved_frames, screen_solved_frames, camera_matrix)
 
-        camera_position, camera_rotation = rvec_tvec_to_camera_pose(rvec, tvec)
-        print(f"Position found by Ransac: {camera_position}")
+        camera_position_ransac, camera_rotation_ransac = rvec_tvec_to_camera_pose(rvec, tvec)
+        print(f"Position found by Ransac: {camera_position_ransac}")
 
+        self.cameras_positions[camera_index]=camera_position_ransac
+        self.cameras_rotations[camera_index]=camera_rotation_ransac
 
+        self.update_virtual_camera_position(camera_index)
+
+    def update_virtual_camera_position(self, camera_index):
+        """
+            Update pyVista camera position
+        """
+        
+        pos, rot = self.cameras_positions[camera_index], self.cameras_rotations[camera_index]
+
+        pos = np.array(pos, dtype=np.float64).flatten()
+        R = np.array(rot, dtype=np.float64)
+        
+        # 1. Extract the Forward vector (3rd row of R)
+        forward_vector = R[2, :]
+        
+        # 2. Extract the Down vector (2nd row of R) and invert it to get Up
+        down_vector = R[1, :]
+        up_vector = -down_vector
+        
+        # 3. Calculate the focal point (what the camera is looking at)
+        # We just add the forward vector to the camera's position
+        focal_pt = pos + forward_vector
+
+        self.plotter.camera.position = pos
+        self.plotter.camera.focal_point = focal_pt
+        self.plotter.camera.up = up_vector
+        self.plotter.camera.clipping_range = (0.6, 1000)
+
+        print(pos, focal_pt, up_vector)
