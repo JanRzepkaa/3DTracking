@@ -68,7 +68,7 @@ class Simulation:
             camera_intrinsics=self.calculate_camera_intrinsics(self.hidden_plotter)
         )
 
-        self.virtual_env.initialize_calibration(1, self.calculate_camera_intrinsics(self.hidden_plotter))
+        self.virtual_env.initialize_calibration(1, [self.calculate_camera_intrinsics(self.hidden_plotter)])
         
         view = [(0, "View 1 Main"), (1, "View 2 Left"), (2, "View 3 Right")]
         for i, text in view:
@@ -195,8 +195,6 @@ class Simulation:
 
         self.cv_window.startWindow()
 
-        i=50
-
         while self.running:
             self.animate_step()
             self.rotate_rod()
@@ -211,18 +209,6 @@ class Simulation:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 self.shutdown()
             time.sleep(0.01)
-            i+=1
-
-            if i%100==0:
-                print("-------------------")
-                all_positions = [self.player_position] + self.positions_of_spheres
-                res = self.cv_window.find_camera_position_and_rotation_from_3_fixed_balls(all_positions)
-                if res is not None:
-                    print("Estimated Camera Position and Rotation (rvec):", res)
-                    print("Actual Camera Position:", self.camera_positions[2])
-                    print("Error in position estimation:", np.linalg.norm(res[0] - self.camera_positions[2]))
-                else:
-                    print("Could not estimate camera position.")
 
             
         print("Closing simulation...")
