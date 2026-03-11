@@ -4,6 +4,22 @@ import math
 from scipy.spatial.transform import Rotation as R
 from itertools import permutations
 
+def intrictics_to_matrix(camera_intrinsics):
+    fx, fy, cx, cy = camera_intrinsics
+    camera_matrix = np.array([
+        [fx,0,cx],
+        [0,fy,cy],
+        [0,0,1]
+    ])
+    return camera_matrix
+
+def solve_pnp(object_points, image_points, camera_matrix):
+    dist_coeffs = np.zeros((4,1)) # Assuming no lens distortion
+    success, rvec, tvec = cv2.solvePnP(object_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_SQPNP)
+    if not success:
+        raise ValueError("Could not solve PnP")
+    return rvec.flatten(), tvec.flatten()
+
 def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_positions, camera_intrinsics):
     """
         Find position and rotation of the camera from 3 fixed balls. 
@@ -22,19 +38,7 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
 
     N = object_points.shape[0]
     
-    fx, fy, cx, cy = camera_intrinsics
-    camera_matrix = np.array([
-        [fx,0,cx],
-        [0,fy,cy],
-        [0,0,1]
-    ])
-
-    def solve_pnp(object_points, image_points, camera_matrix):
-        dist_coeffs = np.zeros((4,1)) # Assuming no lens distortion
-        success, rvec, tvec = cv2.solvePnP(object_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_SQPNP)
-        if not success:
-            raise ValueError("Could not solve PnP")
-        return rvec.flatten(), tvec.flatten()
+    camera_matrix = intrictics_to_matrix(camera_intrinsics)
 
     # Run through all combinations of 3 balls
     best_error = float('inf')
@@ -61,7 +65,7 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
                 best_parameters = (rvec, tvec)
                 best_combo = combo
 
-            print(rvec_tvec_to_camera_pose(rvec, tvec)[0], error)
+            #print(rvec_tvec_to_camera_pose(rvec, tvec)[0], error)
         except Exception as e:
             print(f"Combination {combo} failed: {e}")
             continue
