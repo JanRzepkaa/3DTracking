@@ -4,12 +4,15 @@ import numpy as np
 import time
 import cv2 
 from AnalyzePyVistaVideo import AnalyzePyVistaVideo
+from VirtualEnviroment import VirtualEnviroment
 
 class Simulation:
     def __init__(self):
         self.running = True
         self.show_cv_window = True
         self.cv_window = AnalyzePyVistaVideo(self.show_cv_window)
+
+        self.virtual_env = VirtualEnviroment()
         # 1. Create the shared "Player" object
         # We save this as self.player so we can modify it later
         self.player_mesh = pv.Sphere(radius=0.5, center=(0, 0, 1))
@@ -65,6 +68,7 @@ class Simulation:
             camera_intrinsics=self.calculate_camera_intrinsics(self.hidden_plotter)
         )
 
+        self.virtual_env.initialize_calibration(1, self.calculate_camera_intrinsics(self.hidden_plotter))
         
         view = [(0, "View 1 Main"), (1, "View 2 Left"), (2, "View 3 Right")]
         for i, text in view:
@@ -110,7 +114,9 @@ class Simulation:
             ("Shift_L", lambda: self.update_position((0, 0, -0.2))),
             ("t", lambda: self.reset_cameras()),
             ("q", self.shutdown),
-            ("v", self.change_cv_window_visibility)
+            ("v", self.change_cv_window_visibility),
+            ("1", lambda: self.add_frame_for_virtual_env_calibration(0)),
+            ("c", lambda: self.calibrate_virtual_cameras())
         ]
 
         for key, func in key_events:
@@ -119,7 +125,17 @@ class Simulation:
     def change_cv_window_visibility(self):
         self.show_cv_window = not self.show_cv_window
         self.cv_window.change_visibility(self.show_cv_window)
+
+    def add_frame_for_virtual_env_calibration(self, camera_index):
+        img_rgb = self.hidden_plotter.screenshot(None, return_img=True)
+        img_bgr = img_rgb[:, :, ::-1].copy()
+        _, screen_positon = self.cv_window.find_centroids_and_contours(img_bgr)
+        all_true_positions = [self.player_position] + self.positions_of_spheres
+        self.virtual_env.add_frame_for_calibration(all_true_positions, screen_positon, camera_index)
         
+    def calibrate_virtual_cameras(self):
+        self.virtual_env.calibrate_camera(0)
+
     def add_all_meshes_to_plotter(self, local_plotter, subplot_index=None):
         if subplot_index is not None:
             local_plotter.subplot(0, subplot_index)
