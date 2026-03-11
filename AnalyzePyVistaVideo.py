@@ -129,6 +129,10 @@ class AnalyzePyVistaVideo:
             video_positions=video_positions,
             camera_intrinsics=self.camera_intrinsics)
         
+        if solved_pnp is None:
+            print("Could not solve PnP with the given points.")
+            return None
+        
         camera_position, camera_rotation = rvec_tvec_to_camera_pose(solved_pnp[0], solved_pnp[1])
         print(f"Best combo: {best_combo}, Reprojection error: {best_error}")
 

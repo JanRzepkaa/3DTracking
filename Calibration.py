@@ -17,8 +17,8 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
 
     assert object_points.shape[0] == image_points.shape[0], "Number of object points and image points must be the same"
 
-    print("Object points:\n", object_points)
-    print("Image points:\n", image_points)
+    #print("Object points:\n", object_points)
+    #print("Image points:\n", image_points)
 
     N = object_points.shape[0]
     
@@ -45,12 +45,16 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
         try:
             rvec, tvec = solve_pnp(object_points[list(range(N))], image_points[list(combo)], camera_matrix)
 
+            if check_if_we_can_reject_solution(rvec, tvec):
+                #print(f"Combination {combo} rejected based on constraints.")
+                continue
+
             # Project all object points using the estimated parameters
             projected_points, _ = cv2.projectPoints(object_points, rvec, tvec, camera_matrix, distCoeffs=None)
             projected_points = projected_points.reshape(-1, 2)
 
-            # Calculate reprojection error
-            error = np.linalg.norm(projected_points - image_points, axis=1).mean()
+            # Calculate reprojection Mean Squared Error
+            error = np.mean(np.linalg.norm(projected_points - image_points, axis=1))
 
             if error < best_error:
                 best_error = error
@@ -64,6 +68,25 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
     
 
     return best_parameters, best_combo, best_error
+
+def check_if_we_can_reject_solution(rvec, tvec):
+    R, _ = cv2.Rodrigues(rvec)
+
+    r_31 = R[2, 0] 
+    r_32 = R[2, 1]
+    # 3. Apply the Zero-Roll Constraint
+    # We use a small tolerance (e.g., 0.1) instead of exactly 0 to account 
+    # for floating-point inaccuracies during the optimization process.
+    # An r_31 of 0.1 equates to about 5.7 degrees of roll.
+    roll_tolerance = 0.1
+    if abs(r_31) > roll_tolerance:
+        return True # Reject: Camera is tilted sideways
+    
+    # 4. Apply the "Not Upside Down" Constraint
+    if r_32 > 0:
+        return True # Reject: Camera is upside down
+    return False
+
 
 def rvec_tvec_to_camera_pose(rvec, tvec):
     R, _ = cv2.Rodrigues(rvec)
