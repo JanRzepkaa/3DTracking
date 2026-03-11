@@ -9,7 +9,7 @@ from VirtualEnviroment import VirtualEnviroment
 class Simulation:
     def __init__(self):
         self.running = True
-        self.show_cv_window = True
+        self.show_cv_window = False
         self.cv_window = AnalyzePyVistaVideo(self.show_cv_window)
 
         self.virtual_env = VirtualEnviroment()
@@ -54,7 +54,7 @@ class Simulation:
         self.hidden_plotter.camera.clipping_range = (0.6, 1000)
 
         my_light = pv.Light(
-                position=(0, 50, 1), 
+                position=(0, 8, 1), 
                 focal_point=(0, 0, 0), 
                 color='white',
                 light_type='scene light' # 'scene light' means it stays fixed in the 3D world
@@ -165,8 +165,8 @@ class Simulation:
         self.pointer.move_random()
 
 
-    def animate_step(self):
-        pos = self.positions_of_spheres[0]
+    def animate_step(self, ball_index, speed=0.01):
+        pos = self.positions_of_spheres[ball_index]
 
         dist_from_center = 2
         current_angle = np.arctan(pos[1]/pos[0])
@@ -181,8 +181,8 @@ class Simulation:
 
         difference = new_pos - pos
 
-        self.static_spheres[0].points += difference
-        self.positions_of_spheres[0] += difference
+        self.static_spheres[ball_index].points += difference
+        self.positions_of_spheres[ball_index] += difference
 
     def update_position(self, change_vector):
         self.player_mesh.points += np.array(change_vector)
@@ -196,7 +196,8 @@ class Simulation:
         self.cv_window.startWindow()
 
         while self.running:
-            self.animate_step()
+            self.animate_step(0)
+            self.animate_step(1, 0.03)
             self.rotate_rod()
             self.plotter.update()
             self.hidden_plotter.update()
