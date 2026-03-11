@@ -73,6 +73,40 @@ def find_camera_position_and_rotation_from_3_fixed_balls(true_positions, video_p
 
     return best_parameters, best_combo, best_error
 
+def solve_global_camera_ransac(all_object_points, all_image_points, camera_matrix):
+    """
+    Solves for the camera using all frames at once, ignoring wrongly sorted points.
+    all_object_points: shape (N, 3) 
+    all_image_points: shape (N, 2)
+    """
+    dist_coeffs = np.zeros((4,1))
+    
+    # 1. RANSAC Parameters
+    # How many pixels a projection can be off by and still be considered "correct"
+    reprojection_threshold = 3.0 
+    
+    # How many random 4-point combinations to test. 
+    # Since 95% of your data is good, 100 iterations is more than enough to find the truth.
+    confidence = 0.99
+    iterations = 2000
+    
+    # 2. Run solvePnPRansac
+    success, rvec, tvec, inliers = cv2.solvePnPRansac(
+        all_object_points, 
+        all_image_points, 
+        camera_matrix, 
+        dist_coeffs,
+        iterationsCount=iterations,
+        reprojectionError=reprojection_threshold,
+        confidence=confidence,
+        flags=cv2.SOLVEPNP_SQPNP # It still uses SQPNP under the hood for the math
+    )
+    
+    if not success:
+        raise ValueError("RANSAC could not find a consensus among the points.")
+        
+    return rvec.flatten(), tvec.flatten(), inliers
+
 def check_if_we_can_reject_solution(rvec, tvec):
     R, _ = cv2.Rodrigues(rvec)
 
