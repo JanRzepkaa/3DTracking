@@ -31,7 +31,7 @@ class AnalyzePyVistaVideo:
             img_bgr = screenshot[:, :, ::-1]
             self.last_frame = img_bgr.copy()  # Store the last frame for later use
 
-            new_frame = img_bgr.copy() # Create a copy for drawing
+            new_frame = img_bgr.copy() # Create a copy for drawingx 
             
             contours, centers = self.find_centroids_and_contours(new_frame)
             self.draw_contours(new_frame, contours)
@@ -40,11 +40,15 @@ class AnalyzePyVistaVideo:
             # 4. Display the processed frame
             self.update(new_frame)
 
-    def find_centroids_and_contours(self, frame):
+    def find_centroids_and_contours(self, frame, color="lime"):
         # 2. Isolate the color of interest (e.g., green)
-        lower_green = np.array([40, 100, 100])
-        upper_green = np.array([80, 255, 255])
-        thresh = self.isolate_color(frame, (lower_green, upper_green))
+        if color == "lime":
+            lower = np.array([40, 100, 100])
+            upper = np.array([80, 255, 255])
+        if color == "blue":
+            lower = np.array([100, 100, 100])
+            upper = np.array([130, 255, 255])
+        thresh = self.isolate_color(frame, (lower, upper))
 
         # Find contours and centroids
         contours = self.find_contours(thresh)

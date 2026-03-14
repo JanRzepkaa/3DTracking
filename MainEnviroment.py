@@ -23,13 +23,14 @@ class Simulation:
             np.array([2, 0, 0], dtype=np.float32),
             np.array([-2, -1, 1], dtype=np.float32),
             np.array([-5, 0, 1], dtype=np.float32),
-            #np.array([-2.0, -2.0, 2.0])
+            np.array([-2.0, -2.0, 2.0], dtype=np.float32)
         ]
 
         self.static_spheres = [
             pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[0].copy())),
             pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[1].copy())),
             pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[2].copy())),
+            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[3].copy())),
             #pv.Sphere(radius=0.3, center=(-2, -2, 2))
         ]
         # Define camera positions
@@ -118,7 +119,7 @@ class Simulation:
             ("v", self.change_cv_window_visibility),
             ("c", lambda: self.calibrate_virtual_cameras()),
             ("f", self.fake_calibration),
-            ("t", lambda: self.virtual_env.add_line_from_camera_to_point(0, (500, 200)))
+            ("t", lambda: self.virtual_env.add_line_from_camera_to_point(0, (0, 0)))
         ]
 
         for i in range(1, self.camer_count+1):
@@ -142,7 +143,7 @@ class Simulation:
         img_rgb = self.hidden_plotters[camera_index].screenshot(None, return_img=True)
         img_bgr = img_rgb[:, :, ::-1].copy()
         _, screen_positon = self.cv_window.find_centroids_and_contours(img_bgr)
-        all_true_positions = [self.player_position] + self.positions_of_spheres
+        all_true_positions = self.positions_of_spheres
         self.virtual_env.add_frame_for_calibration(all_true_positions, screen_positon, camera_index)
         
     def calibrate_virtual_cameras(self):
@@ -152,7 +153,7 @@ class Simulation:
     def add_all_meshes_to_plotter(self, local_plotter, subplot_index=None):
         if subplot_index is not None:
             local_plotter.subplot(0, subplot_index)
-        local_plotter.add_mesh(self.player_mesh, color="lime")
+        local_plotter.add_mesh(self.player_mesh, color="blue")
         for s in self.static_spheres:
             local_plotter.add_mesh(s, color="lime")
         local_plotter.add_mesh(self.pointer.vista, color="yellow")
@@ -214,6 +215,8 @@ class Simulation:
         while self.running:
             self.animate_step(0)
             self.animate_step(1, 0.03)
+            self.animate_step(2, -0.03)
+            self.animate_step(3, -0.1)
             self.rotate_rod()
             self.plotter.update()
             for i in range(self.camer_count):
