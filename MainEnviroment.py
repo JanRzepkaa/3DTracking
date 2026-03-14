@@ -113,10 +113,12 @@ class Simulation:
             ("Right", lambda: self.update_position((0.2, 0, 0))),
             ("space", lambda: self.update_position((0, 0, 0.2))),
             ("Shift_L", lambda: self.update_position((0, 0, -0.2))),
-            ("t", lambda: self.reset_cameras()),
+            ("a", lambda: self.reset_cameras()),
             ("q", self.shutdown),
             ("v", self.change_cv_window_visibility),
-            ("c", lambda: self.calibrate_virtual_cameras())
+            ("c", lambda: self.calibrate_virtual_cameras()),
+            ("f", self.fake_calibration),
+            ("t", lambda: self.virtual_env.add_line_from_camera_to_point(0, (500, 200)))
         ]
 
         for i in range(1, self.camer_count+1):
@@ -128,6 +130,9 @@ class Simulation:
 
         for key, func in key_events:
             self.plotter.add_key_event(key, func)
+
+    def fake_calibration(self):
+        self.virtual_env.fake_calibration(list(self.camera_positions.values())[1:])
 
     def change_cv_window_visibility(self):
         self.show_cv_window = not self.show_cv_window

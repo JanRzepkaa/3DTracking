@@ -7,10 +7,39 @@ class VirtualEnviroment:
     def __init__(self):
         self.plotter = pv.Plotter(shape=(1, 2), window_size=(1500, 400), title="Real-Time Control")
 
+        self.line = pv.Line((0, 0, 0), (0, 0, 1))
+        self.tube = self.line.tube(radius=0.05)
+
         self.plotter.subplot(0, 0)
         self.plotter.show_grid(bounds = (-5.0, 10.0, -5.0, 10.0, 0.0, 5.0))
+        self.plotter.add_mesh(self.tube)
 
         self.frustum_actors = []
+
+    def initialize_calibration(self, camera_count, cameras_intrinsics):
+        self.camera_count = camera_count
+
+        self.calibration_info = [[] for i in range(camera_count)]
+        self.already_solved_frames = [[] for i in range(camera_count)]
+        # Single entry = (true_position, screen_position)
+        self.cameras_intrinsics = cameras_intrinsics # (camera_count, 3, 3)
+        self.cameras_positions = [[0, 0, 0] for i in range(camera_count)]
+        self.cameras_rotations = [[] for i in range(camera_count)]
+
+        self.calibrated_cameras = [False for i in range(camera_count)]
+        for i in range(camera_count):
+            self.add_camera_frustum()
+
+    def fake_calibration(self, cameras_positions):
+        cameras_positions = np.array(cameras_positions, dtype=np.float64)
+        for i, pos in enumerate(cameras_positions):
+            self.cameras_positions[i] = pos
+            self.cameras_rotations[i] = pyvista_to_opencv_rotation(pos, (0, 0, 0), (0, 0, 1))
+            self.calibrated_cameras[i] = True
+
+
+        for i in range(self.camera_count):
+            self.update_virtual_camera_position(i)
 
     def add_camera_frustum(self):
         # 1. Generate the base frustum at the world origin
@@ -53,16 +82,6 @@ class VirtualEnviroment:
 
     def close_plotter(self):
         self.plotter.close()
-
-    def initialize_calibration(self, camera_count, cameras_intrinsics):
-        self.calibration_info = [[] for i in range(camera_count)]
-        self.already_solved_frames = [[] for i in range(camera_count)]
-        # Single entry = (true_position, screen_position)
-        self.cameras_intrinsics = cameras_intrinsics # (camera_count, 3, 3)
-        self.cameras_positions = [[0, 0, 0] for i in range(camera_count)]
-        self.cameras_rotations = [[] for i in range(camera_count)]
-        for i in range(camera_count):
-            self.add_camera_frustum()
 
     def add_frame_for_calibration(self, true_pos, screen_pos, camera_index):
         a, b = copy.deepcopy(true_pos), copy.deepcopy(screen_pos)
@@ -148,6 +167,7 @@ class VirtualEnviroment:
 
         self.cameras_positions[camera_index]=camera_position_ransac
         self.cameras_rotations[camera_index]=camera_rotation_ransac
+        self.calibrated_cameras[camera_index] = True
 
         self.update_virtual_camera_position(camera_index)
 
@@ -184,7 +204,42 @@ class VirtualEnviroment:
 
         print(pos, focal_pt, up_vector)
 
+    def calculate_line_from_camera_to_points(self, camera_index, point):
+        if self.calibrated_cameras[camera_index] == False:
+            return None
 
+        camera_pos = self.cameras_positions[camera_index]
+        fx, fy, cx, cy = self.cameras_intrinsics[camera_index]
+
+        pixel_x, pixel_y = point
+
+        x = (pixel_x - cx) / fx
+        y = (pixel_y - cy) / fy
+
+        Z = 1
+        X = x*Z
+        Y = y*Z
+
+        R = np.array(self.cameras_rotations[camera_index], dtype=np.float64)
+        camera_to_point_rotated = np.array([X, Y, Z])
+
+        ray_direction_world = R @ camera_to_point_rotated
+
+        ray_direction_world = ray_direction_world / np.linalg.norm(ray_direction_world)
+
+        print(ray_direction_world)
+        return ray_direction_world
+    
+    def add_line_from_camera_to_point(self, camera_index, point):
+        ray = self.calculate_line_from_camera_to_points(camera_index, point)
+        print(ray)
+        start = self.cameras_positions[camera_index]
+        end = start + 5*ray
+
+        line = pv.Line(start, end)
+        print(start, end)
+        self.tube.points = line.tube(radius=0.05).points
+        
 
 
 def create_camera_frustum(scale=2.0, aspect_ratio=2.5):
@@ -218,3 +273,41 @@ def create_camera_frustum(scale=2.0, aspect_ratio=2.5):
     ])
     
     return pv.PolyData(points, faces)
+
+def pyvista_to_opencv_rotation(pos, focal_pt, up_vector):
+    """
+    Converts PyVista camera parameters to an OpenCV 3x3 Rotation Matrix (R).
+    
+    Parameters:
+        pos: (3,) array, Camera Position
+        focal_pt: (3,) array, Focal Point
+        up_vector: (3,) array, Up Vector
+        
+    Returns:
+        R: (3, 3) array, World-to-Camera Rotation Matrix
+    """
+    # 1. Calculate the Forward Vector (+Z)
+    # Points from camera to focal point
+    f = np.array(focal_pt) - np.array(pos)
+    f /= np.linalg.norm(f)
+    
+    # 2. Calculate the Right Vector (+X)
+    # Cross product of Forward and PyVista Up
+    # PyVista 'Up' is typically World Up (0,0,1)
+    r = np.cross(f, np.array(up_vector))
+    r /= np.linalg.norm(r)
+    
+    # 3. Calculate the Down Vector (+Y)
+    # In OpenCV, Y is down. Cross Forward and Right to get it.
+    d = np.cross(f, r)
+    # No need to normalize here if f and r are unit vectors and orthogonal
+    
+    # 4. Construct the Camera-to-World Matrix (R_inv)
+    # These vectors are the columns of the transformation matrix
+    R_world_to_cam_T = np.column_stack((r, d, f))
+    
+    # 5. Return the Transpose to get the World-to-Camera Matrix (R)
+    # Because it is an orthogonal matrix, transpose == inverse
+    R = R_world_to_cam_T
+    
+    return R
