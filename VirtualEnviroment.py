@@ -2,6 +2,7 @@ import pyvista as pv
 import numpy as np 
 from Calibration import *
 from VirtualEnvHelpers import *
+from VirtualEnvAnalysis import *
 import copy
 
 class VirtualEnviroment:
@@ -18,71 +19,10 @@ class VirtualEnviroment:
         self.plotter.subplot(0, 0)
         self.plotter.show_grid(bounds = (-5.0, 10.0, -5.0, 10.0, 0.0, 5.0))
 
-        self.ball = pv.Sphere(radius=0.01, center=(0, 0, 0))
+        self.ball = pv.Sphere(radius=0.01, center = (0, 0, 0))
         self.plotter.add_mesh(self.ball, color="blue")
 
         self.frustum_actors = []
-
-
-    def initialize_calibration(self, camera_count, cameras_intrinsics):
-        self.camera_count = camera_count
-
-        self.calibration_info = [[] for i in range(camera_count)]
-        self.already_solved_frames = [[] for i in range(camera_count)]
-        # Single entry = (true_position, screen_position)
-        self.cameras_intrinsics = cameras_intrinsics # (camera_count, 3, 3)
-        self.cameras_positions = [[0, 0, 0] for i in range(camera_count)]
-        self.cameras_rotations = [[] for i in range(camera_count)]
-
-        self.calibrated_cameras = [False for i in range(camera_count)]
-        for i in range(camera_count):
-            self.add_camera_frustum()
-            self.plotter.subplot(0, 0)
-            self.plotter.add_mesh(self.tubes[i], color="yellow")
-
-    def fake_calibration(self, cameras_positions):
-        cameras_positions = np.array(cameras_positions, dtype=np.float64)
-        for i, pos in enumerate(cameras_positions):
-            self.cameras_positions[i] = pos
-            self.cameras_rotations[i] = pyvista_to_opencv_rotation(pos, (0, 0, 0), (0, 0, 1))
-            self.calibrated_cameras[i] = True
-
-
-        for i in range(self.camera_count):
-            self.update_virtual_camera_position(i)
-
-    def add_camera_frustum(self):
-        # 1. Generate the base frustum at the world origin
-        camera_frustum = create_camera_frustum(scale=1)
-
-        self.plotter.subplot(0, 0)
-        # 2. Add it to the plotter as a wireframe and save the actor
-        self.frustum_actors.append(
-            self.plotter.add_mesh(
-                camera_frustum, 
-                style='wireframe',  # Makes it transparent with lines
-                color='cyan', 
-                line_width=3
-            )
-        )
-
-    def update_camera_frustum(self, camera_index, camera_position, R_matrix):
-        """
-        Teleports and rotates the wireframe frustum to match the solved camera pose.
-        """
-        # 1. Create a blank 4x4 identity matrix
-        transform_matrix = np.eye(4, dtype=np.float64)
-        
-        # 2. Slot in the 3x3 Rotation Matrix
-        # We transpose it (.T) because R_matrix maps World -> Camera.
-        # To move a 3D object, we need to map Camera -> World.
-        transform_matrix[:3, :3] = R_matrix
-        
-        # 3. Slot in the 3D Camera Position (Translation)
-        transform_matrix[:3, 3] = camera_position
-        
-        # 4. Apply the transformation directly to the actor's GPU memory
-        self.frustum_actors[camera_index].user_matrix = transform_matrix
 
     def show_plotter(self):
         self.plotter.show(interactive_update=True)
@@ -93,6 +33,35 @@ class VirtualEnviroment:
     def close_plotter(self):
         self.plotter.close()
 
+    def initialize_calibration(self, camera_count, cameras_intrinsics):
+        self.camera_count = camera_count
+
+        self.calibration_info = [[] for i in range(camera_count)]
+        self.already_solved_frames = [[] for i in range(camera_count)]
+        # Single entry = (true_position, screen_position)
+        self.cameras = [VirtualCamera(intrinsics = cameras_intrinsics[i]) for i in range(camera_count)]
+
+        self.calibrated_cameras = [False for i in range(camera_count)]
+        self.plotter.subplot(0, 0)
+        for i in range(camera_count):
+            self.add_camera_frustum(i)
+            self.plotter.add_mesh(self.tubes[i], color="yellow")
+    
+    def add_camera_frustum(self, camera_index):
+        actor = self.plotter.add_mesh(
+            self.cameras[camera_index].vista, 
+            style='wireframe',  # Makes it transparent with lines
+            color='cyan', 
+            line_width=2
+        )
+        self.cameras[camera_index].add_pyvista_actor(actor)
+
+    def fake_calibration(self, cameras_positions):
+        for i, pos in enumerate(cameras_positions):
+            new_rot = pyvista_to_opencv_rotation(pos, (0, 0, 0), (0, 0, 1))
+            self.cameras[i].move_camera(pos, new_rot)
+            self.calibrated_cameras[i] = True
+
     def add_frame_for_calibration(self, true_pos, screen_pos, camera_index):
         a, b = copy.deepcopy(true_pos), copy.deepcopy(screen_pos)
         self.calibration_info[camera_index].append([a, b])
@@ -102,7 +71,7 @@ class VirtualEnviroment:
         """
             Calibrating based on info from a single frame
         """
-        camera_intrinsics = self.cameras_intrinsics[camera_index]
+        camera_intrinsics = self.cameras[camera_index].intrinsics
         solved_pnp, best_combo, best_error = find_camera_position_and_rotation_from_3_fixed_balls(
             true_positions=true_pos,
             video_positions=screen_pos,
@@ -142,7 +111,7 @@ class VirtualEnviroment:
             Find the best position based on info from many frames
         """
 
-        print(f"------------Calibrating camera {camera_index+1}------------")
+        print(f"------------Calibrating camera {camera_index}------------")
 
         already_solved_count = len(self.already_solved_frames[camera_index])
         all_frames_count = len(self.calibration_info[camera_index])
@@ -164,7 +133,7 @@ class VirtualEnviroment:
                 self.already_solved_frames[camera_index].append(None)
 
         true_solved_frames, screen_solved_frames = self.compile_list_of_all_solved_frames(camera_index)
-        camera_intrinsics = self.cameras_intrinsics[camera_index]
+        camera_intrinsics = self.cameras[camera_index].intrinsics
         camera_matrix = intrictics_to_matrix(camera_intrinsics)
         print(len(true_solved_frames), len(screen_solved_frames))
         if len(screen_solved_frames) < 4:
@@ -175,51 +144,15 @@ class VirtualEnviroment:
         camera_position_ransac, camera_rotation_ransac = rvec_tvec_to_camera_pose(rvec, tvec)
         print(f"Position found by Ransac: {camera_position_ransac}")
 
-        self.cameras_positions[camera_index]=camera_position_ransac
-        self.cameras_rotations[camera_index]=camera_rotation_ransac
+        self.cameras[camera_index].move_camera(camera_position_ransac, camera_rotation_ransac)
         self.calibrated_cameras[camera_index] = True
-
-        self.update_virtual_camera_position(camera_index)
-
-    def update_virtual_camera_position(self, camera_index):
-        """
-            Update pyVista camera position
-        """
-        
-        pos, rot = self.cameras_positions[camera_index], self.cameras_rotations[camera_index]
-
-        pos = np.array(pos, dtype=np.float64).flatten()
-        R = np.array(rot, dtype=np.float64)
-
-        # 1. Extract the Forward vector (3rd row of R)
-        forward_vector = R.T[2, :]
-        
-        # 2. Extract the Down vector (2nd row of R) and invert it to get Up
-        down_vector = R.T[1, :]
-        up_vector = -down_vector
-        
-        # 3. Calculate the focal point (what the camera is looking at)
-        # We just add the forward vector to the camera's position
-        focal_pt = pos + 3*forward_vector
-
-        #self.plotter.subplot(0, camera_index+1)
-        #self.plotter.show_grid()
-#
-        #self.plotter.camera.position = pos
-        #self.plotter.camera.focal_point = focal_pt
-        #self.plotter.camera.up = up_vector
-        #self.plotter.camera.clipping_range = (0.6, 1000)
-
-        self.update_camera_frustum(camera_index, pos, R)
-
-        print(pos, focal_pt, up_vector)
 
     def calculate_line_from_camera_to_points(self, camera_index, point):
         if self.calibrated_cameras[camera_index] == False:
             return None
 
-        camera_pos = self.cameras_positions[camera_index]
-        fx, fy, cx, cy = self.cameras_intrinsics[camera_index]
+        camera_pos = self.cameras[camera_index].position
+        fx, fy, cx, cy = self.cameras[camera_index].intrinsics
 
         pixel_x, pixel_y = point
 
@@ -230,7 +163,7 @@ class VirtualEnviroment:
         X = x*Z
         Y = y*Z
 
-        R = np.array(self.cameras_rotations[camera_index], dtype=np.float64)
+        R = self.cameras[camera_index].R_matrix
         camera_to_point_rotated = np.array([X, Y, Z])
 
         ray_direction_world = R @ camera_to_point_rotated
@@ -245,7 +178,7 @@ class VirtualEnviroment:
             return
         ray = self.calculate_line_from_camera_to_points(camera_index, point)
         self.last_rays[camera_index] = ray
-        start = self.cameras_positions[camera_index]
+        start = self.cameras[camera_index].position
         end = start + np.linalg.norm(start)*1.2*ray
 
         line = pv.Line(start, end)
@@ -258,7 +191,7 @@ class VirtualEnviroment:
             if type(self.last_rays[i]) == type(None):
                 continue
             real_rays.append(self.last_rays[i])
-            real_pos.append(self.cameras_positions[i])
+            real_pos.append(self.cameras[i].position)
         if len(real_pos) < 2:
             return
         ball_pos = triangulate_n_rays(real_pos, real_rays)
