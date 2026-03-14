@@ -19,8 +19,8 @@ class VirtualEnviroment:
         self.plotter.subplot(0, 0)
         self.plotter.show_grid(bounds = (-5.0, 10.0, -5.0, 10.0, 0.0, 5.0))
 
-        self.ball = pv.Sphere(radius=0.01, center = (0, 0, 0))
-        self.plotter.add_mesh(self.ball, color="blue")
+        self.ball = VirtualPoint()
+        self.plotter.add_mesh(self.ball.vista, color="blue")
 
         self.frustum_actors = []
 
@@ -195,6 +195,6 @@ class VirtualEnviroment:
         if len(real_pos) < 2:
             return
         ball_pos = triangulate_n_rays(real_pos, real_rays)
-        self.ball.points = pv.Sphere(0.5, list(ball_pos)).points
+        self.ball.move(ball_pos)
         
         return ball_pos

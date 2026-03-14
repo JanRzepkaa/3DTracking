@@ -243,9 +243,9 @@ class Simulation:
 
             self.track_player()
             virtual_pos = self.virtual_env.update_ball_position()
-            dist = virtual_pos - self.player_position
-
-            print(f"{np.linalg.norm(dist):.4f}")
+            if virtual_pos is not None:
+                dist = virtual_pos - self.player_position
+                print(f"{np.linalg.norm(dist):.4f}")
 
             # 5. Handle OpenCV events (Required to keep window responsive)
             if cv2.waitKey(1) & 0xFF == ord('q'):

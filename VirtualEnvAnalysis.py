@@ -2,6 +2,20 @@ import pyvista as pv
 import numpy as np 
 from VirtualEnvHelpers import *
 
+class VirtualPoint():
+    def __init__(self, position = (0, 0, 0)):
+        self.position = np.array(position, dtype=np.float64)
+        self.velocity = [0, 0, 0]
+
+        self.vista = pv.Sphere(radius=0.3, center=self.position)
+
+    def move(self, new_position):
+        new_position = np.array(new_position, dtype=np.float64)
+        self.velocity = new_position-self.position
+        self.position = new_position
+
+        self.vista.points += self.velocity
+
 
 class VirtualCamera():
     def __init__(self, position=(0, 0, 0), R_matrix=None, intrinsics=None):
