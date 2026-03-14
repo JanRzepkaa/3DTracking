@@ -5,16 +5,23 @@ import copy
 
 class VirtualEnviroment:
     def __init__(self):
-        self.plotter = pv.Plotter(shape=(1, 2), window_size=(1500, 400), title="Real-Time Control")
+        self.plotter = pv.Plotter(shape=(1, 1), window_size=(1500, 400), title="Real-Time Control")
 
-        self.line = pv.Line((0, 0, 0), (0, 0, 1))
-        self.tube = self.line.tube(radius=0.05)
+        line = pv.Line((0, 0, 0), (0, 0, 0.1))
+        self.tubes = []
+        self.last_rays = []
+        for i in range(100):
+            self.last_rays.append(None)
+            self.tubes.append(line.tube(radius=0.05))
 
         self.plotter.subplot(0, 0)
         self.plotter.show_grid(bounds = (-5.0, 10.0, -5.0, 10.0, 0.0, 5.0))
-        self.plotter.add_mesh(self.tube)
+
+        self.ball = pv.Sphere(radius=0.01, center=(0, 0, 0))
+        self.plotter.add_mesh(self.ball, color="blue")
 
         self.frustum_actors = []
+
 
     def initialize_calibration(self, camera_count, cameras_intrinsics):
         self.camera_count = camera_count
@@ -29,6 +36,8 @@ class VirtualEnviroment:
         self.calibrated_cameras = [False for i in range(camera_count)]
         for i in range(camera_count):
             self.add_camera_frustum()
+            self.plotter.subplot(0, 0)
+            self.plotter.add_mesh(self.tubes[i], color="yellow")
 
     def fake_calibration(self, cameras_positions):
         cameras_positions = np.array(cameras_positions, dtype=np.float64)
@@ -227,19 +236,34 @@ class VirtualEnviroment:
 
         ray_direction_world = ray_direction_world / np.linalg.norm(ray_direction_world)
 
-        print(ray_direction_world)
         return ray_direction_world
     
     def add_line_from_camera_to_point(self, camera_index, point):
+        if point == None:
+            self.last_rays[camera_index] = None
+            return
         ray = self.calculate_line_from_camera_to_points(camera_index, point)
-        print(ray)
+        self.last_rays[camera_index] = ray
         start = self.cameras_positions[camera_index]
-        end = start + 5*ray
+        end = start + np.linalg.norm(start)*1.2*ray
 
         line = pv.Line(start, end)
-        print(start, end)
-        self.tube.points = line.tube(radius=0.05).points
+        self.tubes[camera_index].points = line.tube(radius=0.1).points
+
+    def update_ball_position(self):
+        real_rays = []
+        real_pos = []
+        for i in range(self.camera_count):
+            if type(self.last_rays[i]) == type(None):
+                continue
+            real_rays.append(self.last_rays[i])
+            real_pos.append(self.cameras_positions[i])
+        if len(real_pos) < 2:
+            return
+        ball_pos = triangulate_n_rays(real_pos, real_rays)
+        self.ball.points = pv.Sphere(0.5, list(ball_pos)).points
         
+        return ball_pos
 
 
 def create_camera_frustum(scale=2.0, aspect_ratio=2.5):
@@ -311,3 +335,44 @@ def pyvista_to_opencv_rotation(pos, focal_pt, up_vector):
     R = R_world_to_cam_T
     
     return R
+
+def triangulate_n_rays(origins, directions):
+    """
+    Finds the 3D point closest to all given rays using Least Squares.
+    
+    Parameters:
+        origins: A list or (N, 3) array of camera positions.
+        directions: A list or (N, 3) array of ray direction vectors.
+        
+    Returns:
+        P: (3,) numpy array representing the estimated (X, Y, Z) ball position.
+    """
+    origins = np.array(origins, dtype=np.float64)
+    directions = np.array(directions, dtype=np.float64)
+    
+    # 1. Initialize the A matrix and b vector
+    A = np.zeros((3, 3), dtype=np.float64)
+    b = np.zeros(3, dtype=np.float64)
+    I = np.eye(3, dtype=np.float64)
+    
+    # 2. Accumulate the matrices for each ray
+    for o, d in zip(origins, directions):
+        # Ensure direction is normalized (length of 1)
+        d = d / np.linalg.norm(d)
+        
+        # Reshape to a 3x1 column vector for the outer product
+        d_col = d.reshape(3, 1)
+        
+        # M = I - (d * d.T)
+        M = I - (d_col @ d_col.T)
+        
+        # Add to our global A and b
+        A += M
+        b += M @ o # Matrix multiplication of M and origin
+        
+    # 3. Solve the linear system A * P = b
+    # np.linalg.lstsq is used instead of np.linalg.solve because it perfectly 
+    # handles numerical instabilities if the rays are nearly parallel.
+    P, residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
+    
+    return P

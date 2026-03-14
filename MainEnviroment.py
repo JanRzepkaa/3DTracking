@@ -79,7 +79,7 @@ class Simulation:
             self.add_all_meshes_to_plotter(self.plotter, i)
             
         self.plotter.subplot(0, 0)
-        self.plotter.show_grid()
+        self.plotter.show_grid(bounds = (-5.0, 10.0, -5.0, 10.0, 0.0, 5.0))
 
         self.reset_cameras()
 
@@ -119,7 +119,8 @@ class Simulation:
             ("v", self.change_cv_window_visibility),
             ("c", lambda: self.calibrate_virtual_cameras()),
             ("f", self.fake_calibration),
-            ("t", lambda: self.virtual_env.add_line_from_camera_to_point(0, (0, 0)))
+            ("t", lambda: self.virtual_env.add_line_from_camera_to_point(0, (0, 0))),
+            ("x", self.track_player)
         ]
 
         for i in range(1, self.camer_count+1):
@@ -177,6 +178,18 @@ class Simulation:
         self.pointer.rotate_rod_y(0.01)
 
         self.pointer.move_random()
+    
+    def track_player(self):
+        screen_positions = [None for i in range(self.camer_count)]
+        for i in range(self.camer_count):
+            screenshot = self.hidden_plotters[i].screenshot(None, return_img=True)
+            img_bgr = screenshot[:, :, ::-1].copy()
+
+            _, pos = self.cv_window.find_centroids_and_contours(frame=img_bgr.copy(), color="blue")
+            screen_positions[i] = pos[0] if len(pos)!=0 else None
+
+        for i in range(self.camer_count):
+            self.virtual_env.add_line_from_camera_to_point(i, screen_positions[i])
 
 
     def animate_step(self, ball_index, speed=0.01):
@@ -211,6 +224,7 @@ class Simulation:
         self.virtual_env.show_plotter()
 
         self.cv_window.startWindow()
+        self.fake_calibration()
 
         while self.running:
             self.animate_step(0)
@@ -226,6 +240,12 @@ class Simulation:
             img_rgb = self.hidden_plotters[3].screenshot(None, return_img=True)
 
             self.cv_window.update_from_pyvista_screenshot(img_rgb)
+
+            self.track_player()
+            virtual_pos = self.virtual_env.update_ball_position()
+            dist = virtual_pos - self.player_position
+
+            print(f"{np.linalg.norm(dist):.4f}")
 
             # 5. Handle OpenCV events (Required to keep window responsive)
             if cv2.waitKey(1) & 0xFF == ord('q'):
