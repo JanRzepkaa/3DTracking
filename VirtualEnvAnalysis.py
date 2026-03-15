@@ -29,8 +29,23 @@ class VirtualCamera():
 
         self.current_rays = []
 
-    def add_pyvista_actor(self, actor):
+        self.dummy_tubes = []
+        self.used_dummy_tubes = []
+        for i in range(10):
+            self.dummy_tubes.append(pv.Line((0, 0, 0), (0, 0, 0.1)).tube(radius=0.001))
+            self.used_dummy_tubes.append(False)
+
+    def add_to_plotter(self, plotter):
+        actor = plotter.add_mesh(
+            self.vista, 
+            style='wireframe',  # Makes it transparent with lines
+            color='cyan', 
+            line_width=2
+        )
         self.vista_actor = actor
+
+        for i in self.dummy_tubes:
+            plotter.add_mesh(i, color="yellow")
 
     def move_camera(self, new_pos, new_R_matrix):
         self.position = np.array(new_pos, dtype=np.float64)
@@ -80,3 +95,9 @@ class VirtualCamera():
         self.current_rays = new_rays
         return new_rays
         
+    def add_ray(self, ray):
+        start = self.position
+        end = start + np.linalg.norm(start)*1.2*ray
+
+        line = pv.Line(start, end)
+        self.dummy_tubes[0].points = line.tube(radius=0.1).points

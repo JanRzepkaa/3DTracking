@@ -22,8 +22,6 @@ class VirtualEnviroment:
         self.ball = VirtualPoint()
         self.plotter.add_mesh(self.ball.vista, color="blue")
 
-        self.frustum_actors = []
-
     def show_plotter(self):
         self.plotter.show(interactive_update=True)
 
@@ -44,18 +42,9 @@ class VirtualEnviroment:
         self.calibrated_cameras = [False for i in range(camera_count)]
         self.plotter.subplot(0, 0)
         for i in range(camera_count):
-            self.add_camera_frustum(i)
+            self.cameras[i].add_to_plotter(self.plotter)
             self.plotter.add_mesh(self.tubes[i], color="yellow")
-    
-    def add_camera_frustum(self, camera_index):
-        actor = self.plotter.add_mesh(
-            self.cameras[camera_index].vista, 
-            style='wireframe',  # Makes it transparent with lines
-            color='cyan', 
-            line_width=2
-        )
-        self.cameras[camera_index].add_pyvista_actor(actor)
-
+        
     def fake_calibration(self, cameras_positions):
         for i, pos in enumerate(cameras_positions):
             new_rot = pyvista_to_opencv_rotation(pos, (0, 0, 0), (0, 0, 1))
@@ -147,42 +136,14 @@ class VirtualEnviroment:
         self.cameras[camera_index].move_camera(camera_position_ransac, camera_rotation_ransac)
         self.calibrated_cameras[camera_index] = True
 
-    def calculate_line_from_camera_to_points(self, camera_index, point):
-        if self.calibrated_cameras[camera_index] == False:
-            return None
-
-        camera_pos = self.cameras[camera_index].position
-        fx, fy, cx, cy = self.cameras[camera_index].intrinsics
-
-        pixel_x, pixel_y = point
-
-        x = (pixel_x - cx) / fx
-        y = (pixel_y - cy) / fy
-
-        Z = 1
-        X = x*Z
-        Y = y*Z
-
-        R = self.cameras[camera_index].R_matrix
-        camera_to_point_rotated = np.array([X, Y, Z])
-
-        ray_direction_world = R @ camera_to_point_rotated
-
-        ray_direction_world = ray_direction_world / np.linalg.norm(ray_direction_world)
-
-        return ray_direction_world
     
     def add_line_from_camera_to_point(self, camera_index, point):
         if point == None:
             self.last_rays[camera_index] = None
             return
-        ray = self.calculate_line_from_camera_to_points(camera_index, point)
+        ray = self.cameras[camera_index].ray_to_point(point)
         self.last_rays[camera_index] = ray
-        start = self.cameras[camera_index].position
-        end = start + np.linalg.norm(start)*1.2*ray
-
-        line = pv.Line(start, end)
-        self.tubes[camera_index].points = line.tube(radius=0.1).points
+        self.cameras[camera_index].add_ray(ray)
 
     def update_ball_position(self):
         real_rays = []
