@@ -48,7 +48,7 @@ class VirtualEnviroment:
         
     def fake_calibration(self, cameras_positions):
         for i, pos in enumerate(cameras_positions):
-            new_rot = pyvista_to_opencv_rotation(pos, (0, 0, 0), (0, 0, 1))
+            new_rot = pyvista_to_opencv_rotation(pos, (0, 0, 1), (0, 0, 1))
             self.cameras[i].move_camera(pos, new_rot)
             self.calibrated_cameras[i] = True
 
@@ -142,7 +142,7 @@ class VirtualEnviroment:
         if points is None:
             return
         self.cameras[camera_index].add_all_rays_from_points(points)
-        self.ray_manager.draw_matched_balls()
+        
         
     def match_rays(self):
-        pass
+        self.ray_manager.draw_from_clique_finding()

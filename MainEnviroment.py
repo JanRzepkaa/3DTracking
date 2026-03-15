@@ -22,25 +22,25 @@ class Simulation:
         self.positions_of_spheres = [
             np.array([2, 0, 0], dtype=np.float32),
             np.array([-2, -1, 1], dtype=np.float32),
-            np.array([-5, 0, 1], dtype=np.float32),
+            np.array([-5, 0, 1.5], dtype=np.float32),
             np.array([-2.0, -2.0, 2.0], dtype=np.float32),
             np.array([0.0, 0.0, 4.0], dtype=np.float32),
         ]
 
         self.static_spheres = [
-            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[0].copy())),
-            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[1].copy())),
-            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[2].copy())),
-            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[3].copy())),
-            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[4].copy())),
+            pv.Sphere(radius=0.2, center=tuple(self.positions_of_spheres[0].copy())),
+            pv.Sphere(radius=0.2, center=tuple(self.positions_of_spheres[1].copy())),
+            pv.Sphere(radius=0.2, center=tuple(self.positions_of_spheres[2].copy())),
+            pv.Sphere(radius=0.2, center=tuple(self.positions_of_spheres[3].copy())),
+            pv.Sphere(radius=0.2, center=tuple(self.positions_of_spheres[4].copy())),
             #pv.Sphere(radius=0.3, center=(-2, -2, 2))
         ]
         # Define camera positions
         self.camera_positions = {
             0: (5, 5, 5),
-            1: (8, 0, 2),
-            2: (0, 8, 1),
-            3: (6, 6, 7),
+            1: (10, 0, 2),
+            2: (0, 10, 1),
+            3: (6, 9, 7),
             4: (-10, -10, 10),
             5: (10, -10, 10)
         }
@@ -61,7 +61,7 @@ class Simulation:
 
             self.add_all_meshes_to_plotter(plt)
             plt.camera.position = self.camera_positions[i]
-            plt.camera.focal_point = (0, 0, 0)
+            plt.camera.focal_point = (0, 0, 1)
             plt.camera.up = (0, 0, 1)
             plt.camera.clipping_range = (0.6, 1000)
 
@@ -181,7 +181,7 @@ class Simulation:
     
     def track_player(self):
         screen_positions = [None for i in range(self.camer_count)]
-        for i in range(3, self.camer_count):
+        for i in range(self.camer_count):
             screenshot = self.hidden_plotters[i].screenshot(None, return_img=True)
             img_bgr = screenshot[:, :, ::-1].copy()
 

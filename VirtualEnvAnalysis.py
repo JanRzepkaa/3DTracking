@@ -2,6 +2,9 @@ import pyvista as pv
 import numpy as np 
 from VirtualEnvHelpers import *
 import scipy
+import networkx as nx
+from itertools import combinations
+
 
 class VirtualPoint():
     def __init__(self, position = (0, 0, 0)):
@@ -120,7 +123,7 @@ class VirtualCamera():
 
         line = pv.Line(start, end)
         self.ray_actors[index].SetVisibility(True)
-        self.dummy_tubes[index].points = line.tube(radius=0.05).points
+        self.dummy_tubes[index].points = line.tube(radius=0.02).points
 
     def add_all_rays_from_points(self, all_points):
         all_rays = self.rays_to_all_points(all_points)
@@ -136,7 +139,7 @@ class GlobalRayManager():
     def __init__(self, cameras : list[VirtualCamera]):
         self.cameras = cameras
 
-        self.points = [VirtualPoint() for i in range(10)]
+        self.points = [VirtualPoint() for i in range(20)]
 
     def hide_points(self):
         for i in self.points:
@@ -182,7 +185,7 @@ class GlobalRayManager():
                 })
         
         return matched_pairs
-    
+
     def draw_matched_balls(self):
         index_A, index_B = 3, 4
         matched_pairs = self.match_rays_from_2_cameras(index_A, index_B)
@@ -199,4 +202,85 @@ class GlobalRayManager():
 
             pos = triangulate_n_rays(positions, correct_rays)
             self.points[i].move(pos)
+
+    def cluster_n_camera_rays(self, distance_threshold=0.01, min_cameras=2):
+        """
+        Groups rays from N cameras into valid 3D balls using Graph Cliques.
+        
+        Parameters:
+            all_cameras_rays: A list of lists. 
+                E.g., [ [(o1, d1), (o2, d2)], [(o3, d3)], ... ]
+                Index of the outer list is the camera ID.
+            distance_threshold: Max distance for two rays to be considered intersecting.
+            min_cameras: Minimum number of cameras that must see the ball to accept it.
             
+        Returns:
+            A list of grouped ray data ready for triangulation.
+            [
+                [ (o1, d1), (o3, d3), ... ], # Ball 1's rays
+                [ (o2, d2), ... ]            # Ball 2's rays
+            ]
+        """
+        G = nx.Graph()
+        
+        # 1. Add all rays as nodes to the graph
+        # Node ID format: (camera_index, ray_index)
+        for cam_idx, camera in enumerate(self.cameras):
+            rays = camera.current_rays
+            for ray_idx, ray_data in enumerate(rays):
+                G.add_node((cam_idx, ray_idx), origin=camera.position, direction=ray_data)
+                
+        # 2. Draw Edges between intersecting rays from DIFFERENT cameras
+        # We use itertools.combinations to easily loop through unique pairs of cameras
+        camera_indices = range(len(self.cameras))
+        
+        for idx_cam_A, idx_cam_B in combinations(camera_indices, 2):
+            cam_A = self.cameras[idx_cam_A]
+            cam_B = self.cameras[idx_cam_B]
+            rays_A = cam_A.current_rays
+            rays_B = cam_B.current_rays
+            
+            for idx_A, ray_A in enumerate(rays_A):
+                for idx_B, ray_B in enumerate(rays_B):
+                    
+                    dist = calculate_ray_to_ray_distance(
+                        cam_A.position, ray_A, 
+                        cam_B.position, ray_B
+                    )
+                    
+                    if dist < distance_threshold:
+                        # They intersect! Connect them in the graph.
+                        G.add_edge((idx_cam_A, idx_A), (idx_cam_B, idx_B))
+                        
+        # 3. Find Maximal Cliques using Bron-Kerbosch
+        cliques = list(nx.find_cliques(G))
+        
+        # 4. Filter and Extract the valid balls
+        valid_balls_rays = []
+        
+        for clique in cliques:
+            # A clique is a list of node IDs: [(0, 1), (1, 0), (2, 2)]
+            if len(clique) >= min_cameras:
+                
+                # Extract the actual mathematical ray data for this ball
+                ball_rays = []
+                for node_id in clique:
+                    node_data = G.nodes[node_id]
+                    ball_rays.append((node_data['origin'], node_data['direction']))
+                    
+                valid_balls_rays.append(ball_rays)
+                
+        return valid_balls_rays
+    
+            
+    def draw_from_clique_finding(self):
+        valid_balls_rays = self.cluster_n_camera_rays(min_cameras=3, distance_threshold=0.05)
+        self.hide_points()
+        for i, single_point_rays in enumerate(valid_balls_rays):
+            single_point_rays = np.array(single_point_rays)
+            positions = single_point_rays[:, 0]
+            correct_rays = single_point_rays[:, 1]
+            pos = triangulate_n_rays(positions, correct_rays)
+
+            self.points[i].move(pos)
+
