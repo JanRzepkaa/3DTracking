@@ -267,7 +267,8 @@ class GlobalRayManager():
             for camera_idx, ray in single_point_rays:
                 self.ray_point[camera_idx].append((ray, pos))
 
-        self.point_manager.update(new_positions)
+        merged = merge_close_points(new_positions)
+        self.point_manager.update(merged)
 
 
     def draw_rays_knowing_pos(self):

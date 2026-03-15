@@ -6,7 +6,7 @@ import random
 import colorsys
 
 class VirtualPoint():
-    def __init__(self, point_id, alpha_v=0.3, alpha_a=0.1):
+    def __init__(self, point_id, alpha_v=0.3, alpha_a=0.4):
         self.id = point_id
         
         # EMA Smoothing Factors (0.0 to 1.0)
@@ -118,8 +118,17 @@ class VirtualPoint():
             self.actor.SetVisibility(True)
             self.predict_actor.SetVisibility(True)
 
+    def change_color(self, new_color=None):
+        if new_color is None:
+            self.actor.prop.color = self.color
+            self.predict_actor.SetVisibility(True)
+            return
+        self.actor.prop.color = new_color
+        self.predict_actor.SetVisibility(False)
+
+
 class PointManager():
-    def __init__(self, pool_size=20, max_distance=0.5, min_hits=15, max_misses=10):
+    def __init__(self, pool_size=20, max_distance=0.5, min_hits=10, max_misses=30):
         """
         pool_size: Max surplus points created in memory.
         max_distance: Max physical distance (units) to match an old point to a new one.
@@ -175,6 +184,7 @@ class PointManager():
                 if cost_matrix[r, c] < self.max_distance:
                     # Successful match
                     active_points[r].update_state(new_coords[c])
+                    active_points[r].change_color()
                     matched_active_indices.add(r)
                     matched_new_indices.add(c)
 
@@ -183,6 +193,7 @@ class PointManager():
             if i not in matched_active_indices:
                 # Let it keep flying on its trajectory instead of freezing!
                 pt.coast()
+                pt.change_color((0, 0, 0))
                 if pt.missed_frames > self.max_misses:
                     pt.reset_track() # Kill the track, send to pool
 

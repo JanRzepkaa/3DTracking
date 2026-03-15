@@ -1,5 +1,6 @@
 import numpy as np
 import pyvista as pv
+from scipy.spatial.distance import cdist
 
 def create_camera_frustum(scale=2.0, aspect_ratio=2.5):
     """
@@ -129,3 +130,34 @@ def calculate_ray_to_ray_distance(o1, d1, o2, d2):
     # Shortest distance is the projection of w onto the cross product
     distance = np.abs(np.dot(w, cross_dir)) / cross_norm
     return distance
+
+def merge_close_points(raw_3d_points, merge_threshold=0.15):
+    """
+    If the triangulator spits out two points sitting almost on top of each other,
+    this merges them into a single averaged point to stop Hungarian confusion.
+    """
+    if len(raw_3d_points) < 2:
+        return raw_3d_points
+        
+    pts = np.array(raw_3d_points)
+    merged_points = []
+    used_indices = set()
+    
+    # Calculate distance from every point to every other point
+    distances = cdist(pts, pts)
+    
+    for i in range(len(pts)):
+        if i in used_indices:
+            continue
+            
+        # Find all points within the threshold (including itself)
+        close_indices = np.where(distances[i] < merge_threshold)[0]
+        
+        # Average their positions together
+        cluster = pts[close_indices]
+        avg_point = np.mean(cluster, axis=0)
+        
+        merged_points.append(avg_point)
+        used_indices.update(close_indices)
+        
+    return merged_points
