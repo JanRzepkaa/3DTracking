@@ -19,9 +19,6 @@ class VirtualEnviroment:
         self.plotter.subplot(0, 0)
         self.plotter.show_grid(bounds = (-5.0, 10.0, -5.0, 10.0, 0.0, 5.0))
 
-        self.ball = VirtualPoint()
-        self.plotter.add_mesh(self.ball.vista, color="blue")
-
     def show_plotter(self):
         self.plotter.show(interactive_update=True)
 
@@ -38,9 +35,13 @@ class VirtualEnviroment:
         self.already_solved_frames = [[] for i in range(camera_count)]
         # Single entry = (true_position, screen_position)
         self.cameras = [VirtualCamera(intrinsics = cameras_intrinsics[i]) for i in range(camera_count)]
-
         self.calibrated_cameras = [False for i in range(camera_count)]
+
+        self.ray_manager = GlobalRayManager(self.cameras)
+        
         self.plotter.subplot(0, 0)
+        self.ray_manager.add_to_plotter(self.plotter)
+
         for i in range(camera_count):
             self.cameras[i].add_to_plotter(self.plotter)
             self.plotter.add_mesh(self.tubes[i], color="yellow")
@@ -136,34 +137,12 @@ class VirtualEnviroment:
         self.cameras[camera_index].move_camera(camera_position_ransac, camera_rotation_ransac)
         self.calibrated_cameras[camera_index] = True
 
-    
-    def add_line_from_camera_to_point(self, camera_index, point):
-        if point == None:
-            self.last_rays[camera_index] = None
-            return
-        ray = self.cameras[camera_index].ray_to_point(point)
-        self.last_rays[camera_index] = ray
-        self.cameras[camera_index].add_ray(ray)
 
     def add_lines_to_all_points(self, camera_index, points):
         if points is None:
-            self.last_rays[camera_index] = None
             return
-        rays = self.cameras[camera_index].add_all_rays_from_points(points)
-        self.last_rays[camera_index] = rays[0]
+        self.cameras[camera_index].add_all_rays_from_points(points)
+        self.ray_manager.draw_matched_balls()
         
-
-    def update_ball_position(self):
-        real_rays = []
-        real_pos = []
-        for i in range(self.camera_count):
-            if type(self.last_rays[i]) == type(None):
-                continue
-            real_rays.append(self.last_rays[i])
-            real_pos.append(self.cameras[i].position)
-        if len(real_pos) < 2:
-            return
-        ball_pos = triangulate_n_rays(real_pos, real_rays)
-        self.ball.move(ball_pos)
-        
-        return ball_pos
+    def match_rays(self):
+        pass

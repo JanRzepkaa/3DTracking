@@ -23,7 +23,8 @@ class Simulation:
             np.array([2, 0, 0], dtype=np.float32),
             np.array([-2, -1, 1], dtype=np.float32),
             np.array([-5, 0, 1], dtype=np.float32),
-            np.array([-2.0, -2.0, 2.0], dtype=np.float32)
+            np.array([-2.0, -2.0, 2.0], dtype=np.float32),
+            np.array([0.0, 0.0, 4.0], dtype=np.float32),
         ]
 
         self.static_spheres = [
@@ -31,6 +32,7 @@ class Simulation:
             pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[1].copy())),
             pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[2].copy())),
             pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[3].copy())),
+            pv.Sphere(radius=0.3, center=tuple(self.positions_of_spheres[4].copy())),
             #pv.Sphere(radius=0.3, center=(-2, -2, 2))
         ]
         # Define camera positions
@@ -96,13 +98,10 @@ class Simulation:
         cy = height / 2
 
         fovy = plotter.camera.view_angle
-        print("FOVY:", fovy)
         fovy_rad = np.radians(fovy)
 
         fy = height / (2 * np.tan(fovy_rad / 2))
         fx = fy #* (width / height)
-
-        print("Calculated Intrinsics - fx:", fx, "fy:", fy, "cx:", cx, "cy:", cy)
 
         camera_intrinsics = (fx, fy, cx, cy)
         return camera_intrinsics
@@ -182,7 +181,7 @@ class Simulation:
     
     def track_player(self):
         screen_positions = [None for i in range(self.camer_count)]
-        for i in range(self.camer_count):
+        for i in range(3, self.camer_count):
             screenshot = self.hidden_plotters[i].screenshot(None, return_img=True)
             img_bgr = screenshot[:, :, ::-1].copy()
 
@@ -243,7 +242,7 @@ class Simulation:
             self.cv_window.update_from_pyvista_screenshot(img_rgb)
 
             self.track_player()
-            virtual_pos = self.virtual_env.update_ball_position()
+            self.virtual_env.match_rays()
             #if virtual_pos is not None:
             #    dist = virtual_pos - self.player_position
             #    print(f"{np.linalg.norm(dist):.4f}")

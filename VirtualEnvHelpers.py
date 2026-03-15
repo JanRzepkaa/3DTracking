@@ -112,3 +112,20 @@ def triangulate_n_rays(origins, directions):
     P, residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
     
     return P
+
+def calculate_ray_to_ray_distance(o1, d1, o2, d2):
+    """
+    Calculates the shortest 3D distance between two rays.
+    """
+    w = o1 - o2
+    # Cross product of the two direction vectors
+    cross_dir = np.cross(d1, d2)
+    cross_norm = np.linalg.norm(cross_dir)
+    
+    # If lines are exactly parallel (rare in real tracking, but possible)
+    if cross_norm < 1e-6:
+        return np.linalg.norm(np.cross(w, d1)) / np.linalg.norm(d1)
+        
+    # Shortest distance is the projection of w onto the cross product
+    distance = np.abs(np.dot(w, cross_dir)) / cross_norm
+    return distance
