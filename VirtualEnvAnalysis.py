@@ -31,6 +31,7 @@ class VirtualCamera():
 
         self.dummy_tubes = []
         self.used_dummy_tubes = []
+        self.none_line = pv.Line((0, 0, 0), (0, 0, 0.1)).tube(radius=0.001)
         for i in range(10):
             self.dummy_tubes.append(pv.Line((0, 0, 0), (0, 0, 0.1)).tube(radius=0.001))
             self.used_dummy_tubes.append(False)
@@ -95,9 +96,18 @@ class VirtualCamera():
         self.current_rays = new_rays
         return new_rays
         
-    def add_ray(self, ray):
+    def add_ray(self, ray, index=0):
         start = self.position
         end = start + np.linalg.norm(start)*1.2*ray
 
         line = pv.Line(start, end)
-        self.dummy_tubes[0].points = line.tube(radius=0.1).points
+        self.dummy_tubes[index].points = line.tube(radius=0.1).points
+
+    def add_all_rays_from_points(self, all_points):
+        all_rays = self.rays_to_all_points(all_points)
+        for i in self.dummy_tubes:
+            i.points = pv.Line((0, 0, 0), (0, 0, 0.1)).tube(radius=0.001).points
+        for i, ray in enumerate(all_rays):
+            self.add_ray(ray, i)
+        return all_rays
+        

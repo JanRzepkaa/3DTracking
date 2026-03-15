@@ -16,7 +16,7 @@ class Simulation:
         # 1. Create the shared "Player" object
         # We save this as self.player so we can modify it later
         self.player_position = np.array([0.0, 3.0, 1.0])
-        self.player_mesh = pv.Sphere(radius=0.5, center=tuple(self.player_position))
+        self.player_mesh = pv.Sphere(radius=0.01, center=tuple(self.player_position))
         # Create other static objects
 
         self.positions_of_spheres = [
@@ -39,7 +39,8 @@ class Simulation:
             1: (8, 0, 2),
             2: (0, 8, 1),
             3: (6, 6, 7),
-            4: (-10, -10, 10)
+            4: (-10, -10, 10),
+            5: (10, -10, 10)
         }
 
         self.pointer = Rod(length=4)
@@ -185,11 +186,11 @@ class Simulation:
             screenshot = self.hidden_plotters[i].screenshot(None, return_img=True)
             img_bgr = screenshot[:, :, ::-1].copy()
 
-            _, pos = self.cv_window.find_centroids_and_contours(frame=img_bgr.copy(), color="blue")
-            screen_positions[i] = pos[0] if len(pos)!=0 else None
+            _, pos = self.cv_window.find_centroids_and_contours(frame=img_bgr.copy(), color="lime")
+            screen_positions[i] = pos if len(pos)>0 else None
 
         for i in range(self.camer_count):
-            self.virtual_env.add_line_from_camera_to_point(i, screen_positions[i])
+            self.virtual_env.add_lines_to_all_points(i, screen_positions[i])
 
 
     def animate_step(self, ball_index, speed=0.01):
@@ -243,9 +244,9 @@ class Simulation:
 
             self.track_player()
             virtual_pos = self.virtual_env.update_ball_position()
-            if virtual_pos is not None:
-                dist = virtual_pos - self.player_position
-                print(f"{np.linalg.norm(dist):.4f}")
+            #if virtual_pos is not None:
+            #    dist = virtual_pos - self.player_position
+            #    print(f"{np.linalg.norm(dist):.4f}")
 
             # 5. Handle OpenCV events (Required to keep window responsive)
             if cv2.waitKey(1) & 0xFF == ord('q'):

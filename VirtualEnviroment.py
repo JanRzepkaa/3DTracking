@@ -145,6 +145,14 @@ class VirtualEnviroment:
         self.last_rays[camera_index] = ray
         self.cameras[camera_index].add_ray(ray)
 
+    def add_lines_to_all_points(self, camera_index, points):
+        if points is None:
+            self.last_rays[camera_index] = None
+            return
+        rays = self.cameras[camera_index].add_all_rays_from_points(points)
+        self.last_rays[camera_index] = rays[0]
+        
+
     def update_ball_position(self):
         real_rays = []
         real_pos = []
