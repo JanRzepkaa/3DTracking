@@ -2,6 +2,8 @@ from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 import numpy as np
 import pyvista as pv
+import random
+import colorsys
 
 
 class VirtualPoint():
@@ -17,13 +19,17 @@ class VirtualPoint():
         self.age = 0            # How many consecutive frames it has been tracked
         self.missed_frames = 0  # How many frames it has been missing
         
+        # Generate a random, bright RGB color (R, G, B floats between 0.0 and 1.0)
+        self.color = [random.uniform(0.0, 1.0), random.uniform(0.8, 1.0),random.uniform(0.8, 1.0)]
+        self.color = colorsys.hsv_to_rgb(*self.color)
+        
         # 1. Create the base mesh at the exact origin (0,0,0) once
         self.vista = pv.Sphere(radius=0.15)
         self.actor = None
 
     def add_to_plotter(self, plotter):
-        """Adds to plotter but immediately hides it."""
-        self.actor = plotter.add_mesh(self.vista, color="lime")
+        """Adds to plotter but immediately hides it, using its unique color."""
+        self.actor = plotter.add_mesh(self.vista, color=self.color)
         self.hide()
 
     def update_state(self, new_position):
@@ -63,7 +69,7 @@ class VirtualPoint():
             self.actor.SetVisibility(True)
 
 class PointManager():
-    def __init__(self, pool_size=20, max_distance=0.3, min_hits=5, max_misses=3):
+    def __init__(self, pool_size=20, max_distance=0.3, min_hits=4, max_misses=5):
         """
         pool_size: Max surplus points created in memory.
         max_distance: Max physical distance (units) to match an old point to a new one.
