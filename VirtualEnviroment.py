@@ -141,8 +141,9 @@ class VirtualEnviroment:
     def add_lines_to_all_points(self, camera_index, points):
         if points is None:
             return
-        self.cameras[camera_index].add_all_rays_from_points(points)
+        self.cameras[camera_index].rays_to_all_points(points)
         
         
     def match_rays(self):
         self.ray_manager.draw_from_clique_finding()
+        self.ray_manager.draw_rays_knowing_pos()

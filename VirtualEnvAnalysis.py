@@ -48,7 +48,7 @@ class VirtualCamera():
         self.dummy_tubes = []
         self.used_dummy_tubes = []
         self.none_line = pv.Line((0, 0, 0), (0, 0, 0.1)).tube(radius=0.001)
-        for i in range(10):
+        for i in range(15):
             self.dummy_tubes.append(pv.Line((0, 0, 0), (0, 0, 0.1)).tube(radius=0.001))
             self.used_dummy_tubes.append(False)
 
@@ -117,9 +117,10 @@ class VirtualCamera():
         self.current_rays = new_rays
         return new_rays
         
-    def add_ray(self, ray, index=0):
+    def add_ray(self, ray, index=0, pos=(0, 0, 0)):
+        pos = np.array(pos)
         start = self.position
-        end = start + np.linalg.norm(start)*1.2*ray
+        end = start + np.linalg.norm(start-pos)*ray
 
         line = pv.Line(start, end)
         self.ray_actors[index].SetVisibility(True)
@@ -138,8 +139,11 @@ class VirtualCamera():
 class GlobalRayManager():
     def __init__(self, cameras : list[VirtualCamera]):
         self.cameras = cameras
+        self.camera_count = len(cameras)
 
         self.points = [VirtualPoint() for i in range(20)]
+
+        self.ray_point = [[] for i in range(self.camera_count)]
 
     def hide_points(self):
         for i in self.points:
@@ -266,7 +270,7 @@ class GlobalRayManager():
                 ball_rays = []
                 for node_id in clique:
                     node_data = G.nodes[node_id]
-                    ball_rays.append((node_data['origin'], node_data['direction']))
+                    ball_rays.append((node_id[0], node_data['direction']))
                     
                 valid_balls_rays.append(ball_rays)
                 
@@ -276,11 +280,29 @@ class GlobalRayManager():
     def draw_from_clique_finding(self):
         valid_balls_rays = self.cluster_n_camera_rays(min_cameras=3, distance_threshold=0.05)
         self.hide_points()
-        for i, single_point_rays in enumerate(valid_balls_rays):
-            single_point_rays = np.array(single_point_rays)
-            positions = single_point_rays[:, 0]
-            correct_rays = single_point_rays[:, 1]
-            pos = triangulate_n_rays(positions, correct_rays)
 
+        self.ray_point = [[] for i in range(self.camera_count)]
+
+        for i, single_point_rays in enumerate(valid_balls_rays):
+            positions, correct_rays = [], []
+            for camera_idx, ray in single_point_rays:
+                cam = self.cameras[camera_idx]
+                positions.append(cam.position)
+                correct_rays.append(ray)
+
+            
+            pos = triangulate_n_rays(positions, correct_rays)
             self.points[i].move(pos)
+
+
+            for camera_idx, ray in single_point_rays:
+                self.ray_point[camera_idx].append((ray, pos))
+
+
+    def draw_rays_knowing_pos(self):
+        for camera_idx, camera_info in enumerate(self.ray_point):
+            self.cameras[camera_idx].hide_rays()
+            for i, (ray, pos) in enumerate(camera_info):
+                self.cameras[camera_idx].add_ray(ray, i, pos)
+
 
