@@ -4,33 +4,7 @@ from VirtualEnvHelpers import *
 import scipy
 import networkx as nx
 from itertools import combinations
-
-
-class VirtualPoint():
-    def __init__(self, position = (0, 0, 0)):
-        self.position = np.array(position, dtype=np.float64)
-        self.velocity = [0, 0, 0]
-
-        self.vista = pv.Sphere(radius=0.3, center=self.position)
-
-    def move(self, new_position):
-        self.show()
-
-        new_position = np.array(new_position, dtype=np.float64)
-        self.velocity = new_position-self.position
-        self.position = new_position
-
-        self.vista.points += self.velocity
-
-    def hide(self):
-        self.actor.SetVisibility(False)
-    
-    def show(self):
-        self.actor.SetVisibility(True)
-
-    def add_to_plotter(self, plotter):
-        self.actor = plotter.add_mesh(self.vista, color="lime")
-
+from VirtualPointManager import PointManager
 
 
 class VirtualCamera():
@@ -141,18 +115,13 @@ class GlobalRayManager():
         self.cameras = cameras
         self.camera_count = len(cameras)
 
-        self.points = [VirtualPoint() for i in range(20)]
-
         self.ray_point = [[] for i in range(self.camera_count)]
 
-    def hide_points(self):
-        for i in self.points:
-            i.hide()
+        self.point_manager = PointManager()
+
 
     def add_to_plotter(self, plotter):
-        for i in self.points:
-            i.add_to_plotter(plotter)
-            i.hide()
+        self.point_manager.add_to_plotter(plotter)
     
     def match_rays_from_2_cameras(self, index_A=0, index_B=1):
         distance_threshold = 0.3
@@ -197,7 +166,7 @@ class GlobalRayManager():
         positions = [self.cameras[index_A].position, self.cameras[index_B].position]
         rays_A, rays_B = self.cameras[index_A].current_rays, self.cameras[index_B].current_rays
 
-        self.hide_points()
+        new_pos = []
 
         for i, match in enumerate(matched_pairs):
             correct_rays = []
@@ -205,7 +174,9 @@ class GlobalRayManager():
             correct_rays.append(rays_B[match["cam_B_index"]])
 
             pos = triangulate_n_rays(positions, correct_rays)
-            self.points[i].move(pos)
+            new_pos.append(pos)
+
+        self.point_manager.update(new_pos)
 
     def cluster_n_camera_rays(self, distance_threshold=0.01, min_cameras=2):
         """
@@ -279,10 +250,9 @@ class GlobalRayManager():
             
     def draw_from_clique_finding(self):
         valid_balls_rays = self.cluster_n_camera_rays(min_cameras=3, distance_threshold=0.05)
-        self.hide_points()
 
         self.ray_point = [[] for i in range(self.camera_count)]
-
+        new_positions = []
         for i, single_point_rays in enumerate(valid_balls_rays):
             positions, correct_rays = [], []
             for camera_idx, ray in single_point_rays:
@@ -292,11 +262,12 @@ class GlobalRayManager():
 
             
             pos = triangulate_n_rays(positions, correct_rays)
-            self.points[i].move(pos)
-
+            new_positions.append(pos)
 
             for camera_idx, ray in single_point_rays:
                 self.ray_point[camera_idx].append((ray, pos))
+
+        self.point_manager.update(new_positions)
 
 
     def draw_rays_knowing_pos(self):
