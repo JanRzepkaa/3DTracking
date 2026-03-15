@@ -5,50 +5,94 @@ import pyvista as pv
 import random
 import colorsys
 
-
 class VirtualPoint():
-    def __init__(self, point_id):
+    def __init__(self, point_id, alpha_v=0.3, alpha_a=0.1):
         self.id = point_id
+        
+        # EMA Smoothing Factors (0.0 to 1.0)
+        # alpha_v: How quickly velocity reacts to changes
+        # alpha_a: Acceleration is naturally noisier, so we use a lower alpha to smooth it more
+        self.alpha_v = alpha_v
+        self.alpha_a = alpha_a
         
         # State variables
         self.position = np.array([0.0, 0.0, 0.0], dtype=np.float64)
         self.velocity = np.array([0.0, 0.0, 0.0], dtype=np.float64)
+        self.acceleration = np.array([0.0, 0.0, 0.0], dtype=np.float64)
         
         # Tracking variables
-        self.is_active = False  # Is this point currently tracking something?
-        self.age = 0            # How many consecutive frames it has been tracked
-        self.missed_frames = 0  # How many frames it has been missing
+        self.is_active = False
+        self.age = 0
+        self.missed_frames = 0
         
-        # Generate a random, bright RGB color (R, G, B floats between 0.0 and 1.0)
+        # Assign a random bright color for visual debugging
         self.color = [random.uniform(0.0, 1.0), random.uniform(0.8, 1.0),random.uniform(0.8, 1.0)]
         self.color = colorsys.hsv_to_rgb(*self.color)
         
-        # 1. Create the base mesh at the exact origin (0,0,0) once
+        # Create the mesh
         self.vista = pv.Sphere(radius=0.15)
+        self.predict_vista = pv.Sphere(radius=0.15)
         self.actor = None
 
     def add_to_plotter(self, plotter):
-        """Adds to plotter but immediately hides it, using its unique color."""
         self.actor = plotter.add_mesh(self.vista, color=self.color)
+        self.predict_actor = plotter.add_mesh(self.vista, color=self.color, opacity=0.5)
         self.hide()
 
-    def update_state(self, new_position):
-        """Teleports the point using the actor's transformation matrix."""
-        new_position = np.array(new_position, dtype=np.float64)
-        
-        # Calculate velocity (optional, but good for Kalman filtering later)
-        if self.age > 0:
-            self.velocity = new_position - self.position
-            
-        self.position = new_position
-        
-        # 2. Instantly teleport the actor on the GPU
+    def move(self):
         if self.actor is not None:
             self.actor.position = tuple(self.position)
+            predict_pos = self.predict_position()
+            self.predict_actor.position = tuple(predict_pos)
+
+    def update_state(self, new_position):
+        """Updates physics state with EMA smoothing."""
+        new_position = np.array(new_position, dtype=np.float64)
+        
+        if self.age == 1:
+            # We need 2 frames to calculate velocity. No acceleration yet.
+            self.velocity = new_position - self.position
             
+        elif self.age > 1:
+            # 1. Calculate the raw, noisy measurements
+            raw_velocity = new_position - self.position
+            raw_acceleration = raw_velocity - self.velocity
+            
+            # 2. Apply Exponential Moving Average (EMA)
+            self.velocity = (self.alpha_v * raw_velocity) + ((1 - self.alpha_v) * self.velocity)
+            self.acceleration = (self.alpha_a * raw_acceleration) + ((1 - self.alpha_a) * self.acceleration)
+            
+        # Update the position
+        self.position = new_position
+        
+        # Instantly teleport the actor on the GPU
+        self.move()
+
         # Reset miss counter and increase age
         self.missed_frames = 0
         self.age += 1
+
+    def predict_position(self):
+        """
+        Uses Newtonian kinematics to predict the next frame's position.
+        """
+        return self.position + self.velocity + (0.5 * self.acceleration)
+
+    def coast(self):
+        """
+        Advances the point blindly along its predicted parabolic 
+        trajectory when it goes missing.
+        """
+        # 1. Move to the predicted position
+        self.position = self.predict_position()
+        
+        # 2. Update velocity (because gravity/acceleration is still acting on it)
+        self.velocity += self.acceleration
+        
+        # 3. Teleport the actor
+        self.move()
+            
+        self.mark_missed()
 
     def mark_missed(self):
         self.missed_frames += 1
@@ -58,18 +102,24 @@ class VirtualPoint():
         self.is_active = False
         self.age = 0
         self.missed_frames = 0
+        
+        # Zero out physics
+        self.velocity = np.array([0.0, 0.0, 0.0])
+        self.acceleration = np.array([0.0, 0.0, 0.0])
         self.hide()
 
     def hide(self):
         if self.actor is not None:
             self.actor.SetVisibility(False)
+            self.predict_actor.SetVisibility(False)
     
     def show(self):
         if self.actor is not None:
             self.actor.SetVisibility(True)
+            self.predict_actor.SetVisibility(True)
 
 class PointManager():
-    def __init__(self, pool_size=20, max_distance=0.3, min_hits=4, max_misses=5):
+    def __init__(self, pool_size=20, max_distance=0.5, min_hits=15, max_misses=10):
         """
         pool_size: Max surplus points created in memory.
         max_distance: Max physical distance (units) to match an old point to a new one.
@@ -90,6 +140,9 @@ class PointManager():
 
     def get_active_points(self):
         return [pt for pt in self.pool if pt.is_active]
+    
+    def get_visible_points(self):
+        return [pt for pt in self.pool if pt.is_active and pt.age > self.min_hits]
 
     def get_free_point(self):
         for pt in self.pool:
@@ -111,7 +164,7 @@ class PointManager():
         # 1. Hungarian Matching
         if len(active_points) > 0 and len(new_coords) > 0:
             # Extract positions of current active trackers
-            active_coords = np.array([pt.position for pt in active_points])
+            active_coords = np.array([pt.predict_position() for pt in active_points])
             
             # Calculate distance matrix (Rows: Active, Cols: New)
             cost_matrix = cdist(active_coords, new_coords)
@@ -128,7 +181,8 @@ class PointManager():
         # 2. Handle Unmatched Active Points (The ball hid or disappeared)
         for i, pt in enumerate(active_points):
             if i not in matched_active_indices:
-                pt.mark_missed()
+                # Let it keep flying on its trajectory instead of freezing!
+                pt.coast()
                 if pt.missed_frames > self.max_misses:
                     pt.reset_track() # Kill the track, send to pool
 
