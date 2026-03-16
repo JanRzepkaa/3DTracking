@@ -52,6 +52,8 @@ class VirtualVector:
 class VirtualPoint():
     def __init__(self, point_id, alpha_v=0.1, alpha_a=0.05):
         self.id = point_id
+
+        self.predicted_from_pixels = False
         
         # EMA Smoothing Factors (0.0 to 1.0)
         # alpha_v: How quickly velocity reacts to changes
@@ -129,6 +131,12 @@ class VirtualPoint():
         # Reset miss counter and increase age
         self.missed_frames = 0
         self.age += 1
+        self.predicted_from_pixels = False
+
+    def update_from_pixel_prediction(self, new_pos):
+        self.update_state(new_pos)
+        self.change_color()
+        self.predicted_from_pixels = True
 
     def predict_position(self):
         """
@@ -211,6 +219,9 @@ class PointManager():
     def get_active_points(self):
         return [pt for pt in self.pool if pt.is_active]
     
+    def get_active_not_predicted(self):
+        return [pt for pt in self.get_active_points() if pt.predicted_from_pixels == False]
+    
     def get_visible_points(self):
         return [pt for pt in self.pool if pt.is_active and pt.age > self.min_hits]
 
@@ -220,13 +231,16 @@ class PointManager():
                 return pt
         return None
 
+    def single_point_update(self, point, new_pos):
+        point.update_state(new_pos)
+
     def update(self, new_3d_coordinates):
         """
         Takes a list of raw (X,Y,Z) tuples from the triangulator, 
         matches them, filters ghosts, and updates the PyVista screen.
         """
         new_coords = np.array(new_3d_coordinates)
-        active_points = self.get_active_points()
+        active_points = self.get_active_not_predicted()
         
         matched_new_indices = set()
         matched_active_indices = set()

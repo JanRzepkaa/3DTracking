@@ -24,7 +24,7 @@ class VirtualCamera():
 
         self.current_rays = []
         self.bool_rays_match = []
-        self.matched_rays = []
+        self.unmatched_rays = []
 
         self.dummy_tubes = []
         self.used_dummy_tubes = []
@@ -47,6 +47,13 @@ class VirtualCamera():
         self.ray_actors = []
         for i in self.dummy_tubes:
             self.ray_actors.append(plotter.add_mesh(i, color="yellow"))
+
+    def update_unmatched_rays(self):
+        unmatched_rays = []
+        for i in range(len(self.bool_rays_match)):
+            if self.bool_rays_match[i] == False:
+                unmatched_rays.append(self.current_rays[i])
+        self.unmatched_rays = unmatched_rays
 
     def hide_rays(self):
         for i in self.ray_actors:
@@ -221,7 +228,7 @@ class GlobalRayManager():
         # 1. Add all rays as nodes to the graph
         # Node ID format: (camera_index, ray_index)
         for cam_idx, camera in enumerate(self.cameras):
-            rays = camera.current_rays
+            rays = camera.unmatched_rays
             for ray_idx, ray_data in enumerate(rays):
                 G.add_node((cam_idx, ray_idx), origin=camera.position, direction=ray_data)
                 
@@ -232,8 +239,8 @@ class GlobalRayManager():
         for idx_cam_A, idx_cam_B in combinations(camera_indices, 2):
             cam_A = self.cameras[idx_cam_A]
             cam_B = self.cameras[idx_cam_B]
-            rays_A = cam_A.current_rays
-            rays_B = cam_B.current_rays
+            rays_A = cam_A.unmatched_rays
+            rays_B = cam_B.unmatched_rays
             
             for idx_A, ray_A in enumerate(rays_A):
                 for idx_B, ray_B in enumerate(rays_B):
@@ -313,13 +320,15 @@ class GlobalRayManager():
     
     def match_predicted_point_to_true(self, camera_index, max_dist=15):
         cam = self.cameras[camera_index]
-        cam.bool_rays_match = [False for i in len(cam.current_rays)]
-        
         predicted_screen_pos = self.predict_next_points_for_camera(camera_index)
+        cam.bool_rays_match = [False for i in range(len(cam.current_rays))]
+
         if predicted_screen_pos is None:
-            return []
+            cam.update_unmatched_rays()
+            return None
+        
+        matched_pairs = [None for i in range(len(predicted_screen_pos))]
         true_screen_pos = cam.current_points
-        matched_pairs = []
 
         for i, pred_pos in enumerate(predicted_screen_pos):
             min_dist, min_point = np.inf, 0
@@ -330,14 +339,54 @@ class GlobalRayManager():
                     min_point = j
 
             if min_dist < max_dist:
-                matched_pairs.append((i, min_point))
+                matched_pairs[i] = cam.current_rays[min_point]
                 cam.bool_rays_match[min_point] = True
+
+        cam.update_unmatched_rays()
         
         return matched_pairs
+    
+    def position_based_on_match_rays(self):
+        matched_ray_pos_cameras = []
+
+        visible_points = self.point_manager.get_visible_points()
+        point_count = len(visible_points)
+
+        for i in range(self.camera_count):
+            cam = self.cameras[i]
+            matched_pairs = self.match_predicted_point_to_true(i)
+            if matched_pairs is None:
+                matched_ray_pos_cameras.append(None)
+                continue
+            matched_ray_pos_cameras.append(matched_pairs)
+
+            
+        possible_new_positions = [None for i in range(point_count)]
+        for point_index in range(point_count):
+            rays = []
+            rays_origin = []
+            for camera_index in range(self.camera_count):
+                if matched_ray_pos_cameras[camera_index] is None:
+                    continue
+                ray = matched_ray_pos_cameras[camera_index][point_index]
+                if ray is None:
+                    continue
+                rays.append((camera_index, ray))
+            
+            if len(rays)>=3:
+                origin = []
+                directions = []
+                for cam_idx, ray in rays:
+                    origin.append(self.cameras[cam_idx].position)
+                    directions.append(ray)
+                pos = triangulate_n_rays(origin, directions)
+
+                visible_points[point_index].update_from_pixel_prediction(pos)
 
 
+            
     def update_frame(self):
         self.draw_from_clique_finding()
-        self.match_predicted_point_to_true(0)
+        self.position_based_on_match_rays()
         #self.ray_manager.draw_rays_knowing_pos()
         
