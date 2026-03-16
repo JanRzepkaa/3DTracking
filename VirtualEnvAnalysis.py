@@ -23,6 +23,8 @@ class VirtualCamera():
         self.vista = create_camera_frustum(1)
 
         self.current_rays = []
+        self.bool_rays_match = []
+        self.matched_rays = []
 
         self.dummy_tubes = []
         self.used_dummy_tubes = []
@@ -309,8 +311,33 @@ class GlobalRayManager():
             return None
         return predicted_screen_pos
     
+    def match_predicted_point_to_true(self, camera_index, max_dist=15):
+        cam = self.cameras[camera_index]
+        cam.bool_rays_match = [False for i in len(cam.current_rays)]
+        
+        predicted_screen_pos = self.predict_next_points_for_camera(camera_index)
+        if predicted_screen_pos is None:
+            return []
+        true_screen_pos = cam.current_points
+        matched_pairs = []
+
+        for i, pred_pos in enumerate(predicted_screen_pos):
+            min_dist, min_point = np.inf, 0
+            for j, true_pos in enumerate(true_screen_pos):
+                dist = np.linalg.norm(pred_pos-true_pos)
+                if dist < min_dist:
+                    min_dist = dist
+                    min_point = j
+
+            if min_dist < max_dist:
+                matched_pairs.append((i, min_point))
+                cam.bool_rays_match[min_point] = True
+        
+        return matched_pairs
+
+
     def update_frame(self):
         self.draw_from_clique_finding()
-        self.predict_next_points_for_camera(0)
+        self.match_predicted_point_to_true(0)
         #self.ray_manager.draw_rays_knowing_pos()
         
