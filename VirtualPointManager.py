@@ -50,7 +50,7 @@ class VirtualVector:
             self.actor.SetVisibility(True)
 
 class VirtualPoint():
-    def __init__(self, point_id, alpha_v=0.1, alpha_a=0.05):
+    def __init__(self, point_id, alpha_v=0.4, alpha_a=0.3):
         self.id = point_id
 
         self.predicted_from_pixels = False
@@ -74,6 +74,7 @@ class VirtualPoint():
         # Assign a random bright color for visual debugging
         self.color = [random.uniform(0.0, 1.0), random.uniform(0.8, 1.0),random.uniform(0.8, 1.0)]
         self.color = colorsys.hsv_to_rgb(*self.color)
+        self.color = 0.5*np.array(self.color)
         
         # Create the mesh
         self.vista = pv.Sphere(radius=0.15)
@@ -102,8 +103,8 @@ class VirtualPoint():
             self.predict_actor.position = tuple(predict_pos)
 
             # Update the visual vectors!
-            self.vel_vector.update(self.position, self.velocity)
-            self.acc_vector.update(self.position, self.acceleration)
+            #self.vel_vector.update(self.position, self.velocity)
+            #self.acc_vector.update(self.position, self.acceleration)
 
     def update_state(self, new_position):
         """Updates physics state with EMA smoothing."""
@@ -135,14 +136,18 @@ class VirtualPoint():
 
     def update_from_pixel_prediction(self, new_pos):
         self.update_state(new_pos)
-        self.change_color()
+        self.change_color(2*self.color)
         self.predicted_from_pixels = True
+    
+    def mark_not_predictated(self):
+        self.change_color()
+        self.predicted_from_pixels = False
 
     def predict_position(self):
         """
         Uses Newtonian kinematics to predict the next frame's position.
         """
-        return self.position + self.velocity + (0.5 * self.acceleration)
+        return self.position + self.velocity + (1 * self.acceleration)
 
     def coast(self):
         """
@@ -190,10 +195,10 @@ class VirtualPoint():
     def change_color(self, new_color=None):
         if new_color is None:
             self.actor.prop.color = self.color
-            self.predict_actor.SetVisibility(True)
+            #self.predict_actor.SetVisibility(False)
             return
         self.actor.prop.color = new_color
-        self.predict_actor.SetVisibility(False)
+        #self.predict_actor.SetVisibility(False)
 
 
 class PointManager():

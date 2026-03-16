@@ -318,7 +318,7 @@ class GlobalRayManager():
             return None
         return predicted_screen_pos
     
-    def match_predicted_point_to_true(self, camera_index, max_dist=15):
+    def match_predicted_point_to_true(self, camera_index, max_dist=5):
         cam = self.cameras[camera_index]
         predicted_screen_pos = self.predict_next_points_for_camera(camera_index)
         cam.bool_rays_match = [False for i in range(len(cam.current_rays))]
@@ -382,6 +382,8 @@ class GlobalRayManager():
                 pos = triangulate_n_rays(origin, directions)
 
                 visible_points[point_index].update_from_pixel_prediction(pos)
+            else:
+                visible_points[point_index].mark_not_predictated()
 
 
             
