@@ -5,6 +5,7 @@ import scipy
 import networkx as nx
 from itertools import combinations
 from VirtualPointManager import PointManager
+from Calibration import *
 
 
 class VirtualCamera():
@@ -14,6 +15,10 @@ class VirtualCamera():
             R_matrix = np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1]])
         self.R_matrix = np.array(R_matrix, dtype=np.float64)
         self.intrinsics = intrinsics
+        fx, fy, cx, cy = intrinsics
+        self.camera_matrix = np.array([[fx, 0, cx],
+                              [0, fy, cy],
+                              [0, 0, 1]], dtype=np.float64)
 
         self.vista = create_camera_frustum(1)
 
@@ -89,6 +94,7 @@ class VirtualCamera():
             new_rays.append(ray)
 
         self.current_rays = new_rays
+        self.current_points = points
         return new_rays
         
     def add_ray(self, ray, index=0, pos=(0, 0, 0)):
@@ -108,6 +114,18 @@ class VirtualCamera():
         for i, ray in enumerate(all_rays):
             self.add_ray(ray, i)
         return all_rays
+    
+    def project_point(self, positions):
+        if len(positions) == 0:
+            return None
+        rvec, _ = cv2.Rodrigues(self.R_matrix.T)
+        tvec = -np.dot(self.R_matrix.T, self.position)
+        positions = np.array(positions)
+        res, _ = cv2.projectPoints(positions, rvec, tvec, self.camera_matrix, distCoeffs=None)
+        cv2_pixel_coords = res[:, 0]
+        # Filp y coordinate to match OpenCV's convention (if needed)
+        #cv2_pixel_coords[1] = self.camera_matrix[1, 2] - (cv2_pixel_coords[1] - self.camera_matrix[1, 2])
+        return cv2_pixel_coords
     
     
 class GlobalRayManager():
@@ -246,7 +264,6 @@ class GlobalRayManager():
                 valid_balls_rays.append(ball_rays)
                 
         return valid_balls_rays
-    
             
     def draw_from_clique_finding(self):
         valid_balls_rays = self.cluster_n_camera_rays(min_cameras=3, distance_threshold=0.05)
@@ -278,3 +295,17 @@ class GlobalRayManager():
                 self.cameras[camera_idx].add_ray(ray, i, pos)
 
 
+    def predict_next_points_for_camera(self, camera_index):
+        cam = self.cameras[camera_index]
+        predicted_points = []
+        predicted_screen_pos = []
+
+        points = self.point_manager.get_visible_points()
+        for i in points:
+            predicted_points.append(i.predict_position())
+        predicted_screen_pos = cam.project_point(predicted_points)
+        
+        if predicted_screen_pos is None:
+            return None
+        return predicted_screen_pos
+        
