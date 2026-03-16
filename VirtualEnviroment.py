@@ -145,5 +145,4 @@ class VirtualEnviroment:
         
         
     def match_rays(self):
-        self.ray_manager.draw_from_clique_finding()
-        self.ray_manager.draw_rays_knowing_pos()
+        self.ray_manager.update_frame()

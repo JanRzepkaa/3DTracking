@@ -308,4 +308,9 @@ class GlobalRayManager():
         if predicted_screen_pos is None:
             return None
         return predicted_screen_pos
+    
+    def update_frame(self):
+        self.draw_from_clique_finding()
+        self.predict_next_points_for_camera(0)
+        #self.ray_manager.draw_rays_knowing_pos()
         
