@@ -5,8 +5,52 @@ import pyvista as pv
 import random
 import colorsys
 
+class VirtualVector:
+    def __init__(self, color="red", scale_multiplier=10.0):
+        self.color = color
+        self.scale_multiplier = scale_multiplier
+        self.actor = None
+        
+        # Create a tiny dummy arrow to initialize the GPU actor once
+        self.dummy_mesh = pv.Arrow(start=(0, 0, 0), direction=(1, 0, 0), scale=0.001)
+
+    def add_to_plotter(self, plotter):
+        self.actor = plotter.add_mesh(self.dummy_mesh, color=self.color)
+        self.hide()
+
+    def update(self, start_pos, vector):
+        norm = np.linalg.norm(vector)
+        
+        # If the vector is basically zero, hide the arrow entirely
+        if norm < 0.001:
+            self.hide()
+            return
+            
+        self.show()
+        
+        # Rebuild the arrow geometry so the arrowhead doesn't distort
+        # We multiply the visual length so it sticks out of the sphere
+        new_arrow = pv.Arrow(
+            start=tuple(start_pos), 
+            direction=tuple(vector), 
+            scale=norm * self.scale_multiplier
+        )
+        
+        # THE TRICK: Swap the mesh data directly in the pipeline 
+        # This completely skips the heavy CPU add/remove plotter overhead
+        if self.actor is not None:
+            self.actor.mapper.dataset = new_arrow
+
+    def hide(self):
+        if self.actor is not None:
+            self.actor.SetVisibility(False)
+    
+    def show(self):
+        if self.actor is not None:
+            self.actor.SetVisibility(True)
+
 class VirtualPoint():
-    def __init__(self, point_id, alpha_v=0.3, alpha_a=0.4):
+    def __init__(self, point_id, alpha_v=0.1, alpha_a=0.05):
         self.id = point_id
         
         # EMA Smoothing Factors (0.0 to 1.0)
@@ -34,9 +78,19 @@ class VirtualPoint():
         self.predict_vista = pv.Sphere(radius=0.15)
         self.actor = None
 
+        # Add the two visual vectors
+        # Velocity = Cyan (Scaled 15x so we can see it)
+        self.vel_vector = VirtualVector(color="cyan", scale_multiplier=15.0)
+        # Acceleration = Magenta (Scaled heavily because accel per frame is tiny)
+        self.acc_vector = VirtualVector(color="magenta", scale_multiplier=50.0)
+
     def add_to_plotter(self, plotter):
         self.actor = plotter.add_mesh(self.vista, color=self.color)
         self.predict_actor = plotter.add_mesh(self.vista, color=self.color, opacity=0.5)
+
+        self.vel_vector.add_to_plotter(plotter)
+        self.acc_vector.add_to_plotter(plotter)
+
         self.hide()
 
     def move(self):
@@ -44,6 +98,10 @@ class VirtualPoint():
             self.actor.position = tuple(self.position)
             predict_pos = self.predict_position()
             self.predict_actor.position = tuple(predict_pos)
+
+            # Update the visual vectors!
+            self.vel_vector.update(self.position, self.velocity)
+            self.acc_vector.update(self.position, self.acceleration)
 
     def update_state(self, new_position):
         """Updates physics state with EMA smoothing."""
@@ -112,6 +170,9 @@ class VirtualPoint():
         if self.actor is not None:
             self.actor.SetVisibility(False)
             self.predict_actor.SetVisibility(False)
+
+        self.vel_vector.hide()
+        self.acc_vector.hide()
     
     def show(self):
         if self.actor is not None:
