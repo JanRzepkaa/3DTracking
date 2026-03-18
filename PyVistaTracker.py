@@ -46,9 +46,17 @@ class PyVistaTracker():
     def start_plotters(self):
         for i in range(self.camera_count):
             self.plotters[i].show(interactive_update=True)
+        self.virtual_env.show_plotter()
+
     def update_plotters(self):
         for i in range(self.camera_count):
             self.plotters[i].update()
+        self.virtual_env.update_plotter()
+
+    def close_plotter(self):
+        for i in range(self.camera_count):
+            self.plotters[i].close()
+        self.virtual_env.close_plotter()
         
     def calculate_intrinsics(self, plotter):
         width, height = plotter.window_size
@@ -113,7 +121,9 @@ class PyVistaTracker():
         for camera_index in range(self.camera_count):
             img_bgr = self.get_bgr_view_from_camera(camera_index)
             _, pos = self.video_analyzer.find_centroids_and_contours(frame=img_bgr.copy(), color="lime")
-            screen_positions[i] = pos if len(pos)>0 else None
+            screen_positions[camera_index] = pos if len(pos)>0 else None
 
         for i in range(self.camera_count):
             self.virtual_env.add_lines_to_all_points(i, screen_positions[i])
+
+        self.virtual_env.match_rays()
