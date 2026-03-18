@@ -43,6 +43,13 @@ class PyVistaTracker():
 
             self.plotters.append(new_plotter)
 
+    def start_plotters(self):
+        for i in range(self.camera_count):
+            self.plotters[i].show(interactive_update=True)
+    def update_plotters(self):
+        for i in range(self.camera_count):
+            self.plotters[i].update()
+        
     def calculate_intrinsics(self, plotter):
         width, height = plotter.window_size
 
@@ -110,4 +117,3 @@ class PyVistaTracker():
 
         for i in range(self.camera_count):
             self.virtual_env.add_lines_to_all_points(i, screen_positions[i])
-
