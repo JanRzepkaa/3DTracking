@@ -12,11 +12,13 @@ class PyVistaTracker():
         self.camera_count = len(cameras_info)
         self.actors = actors
 
-        self.plotters = []
         self.initialize_plotters()
+        self.initialize_virtual_env()
 
 
     def initialize_plotters(self):
+        self.plotters = []
+
         for i in range(self.camera_count):
             cam = self.cameras_info[i]
             new_plotter = pv.Plotter(off_screen=True, window_size=cam.resolution)
@@ -37,3 +39,29 @@ class PyVistaTracker():
             new_plotter.add_light(my_light)
 
             self.plotters.append(new_plotter)
+
+    def calculate_intrinsics(self, plotter):
+        width, height = plotter.window_size
+
+        cx = width / 2
+        cy = height / 2
+
+        fovy = plotter.camera.view_angle
+        fovy_rad = np.radians(fovy)
+
+        fy = height / (2 * np.tan(fovy_rad / 2))
+        fx = fy #* (width / height)
+
+        camera_intrinsics = (fx, fy, cx, cy)
+        return camera_intrinsics
+    
+    def initialize_virtual_env(self):
+        self.virtual_env = VirtualEnviroment()
+
+        all_cameras_intristic = []
+        for plotter in self.plotters:
+            intrinsics = self.calculate_intrinsics(plotter)
+            all_cameras_intristic.append(intrinsics)
+        
+        self.virtual_env.initialize_calibration(self.camera_count, all_cameras_intristic)
+
