@@ -1,3 +1,4 @@
+from PyVistaTracker import PyVistaTracker
 from VistaRod import Rod
 import pyvista as pv 
 import numpy as np 
@@ -35,6 +36,8 @@ class Simulation:
             pv.Sphere(radius=0.2, center=tuple(self.positions_of_spheres[4].copy())),
             #pv.Sphere(radius=0.3, center=(-2, -2, 2))
         ]
+
+        self.actors = {"tracked": [], "other": []}
         # Define camera positions
         self.camera_positions = {
             0: (5, 5, 5),
@@ -51,29 +54,6 @@ class Simulation:
 
         # 2. Setup the Plotter with 3 subplots
         self.plotter = pv.Plotter(shape=(1, 3), window_size=(1500, 400), title="Real-Time Control")
-
-        self.camer_count = len(self.camera_positions)-1
-
-        self.hidden_plotters = []
-        for i in range(1, self.camer_count+1):
-            self.hidden_plotters.append(pv.Plotter(off_screen=True, window_size=(1000, 400)))
-            plt = self.hidden_plotters[i-1]
-
-            self.add_all_meshes_to_plotter(plt)
-            plt.camera.position = self.camera_positions[i]
-            plt.camera.focal_point = (0, 0, 1)
-            plt.camera.up = (0, 0, 1)
-            plt.camera.clipping_range = (0.6, 1000)
-
-            my_light = pv.Light(
-                position=self.camera_positions[i], 
-                focal_point=(0, 0, 0), 
-                color='white',
-                light_type='scene light' # 'scene light' means it stays fixed in the 3D world
-            )
-            plt.add_light(my_light)
-
-        self.virtual_env.initialize_calibration(self.camer_count, [self.calculate_camera_intrinsics(self.hidden_plotters[1])]*self.camer_count)
         
         view = [(0, "View 1 Main"), (1, "View 2 Left"), (2, "View 3 Right")]
         for i, text in view:
@@ -83,6 +63,17 @@ class Simulation:
             
         self.plotter.subplot(0, 0)
         self.plotter.show_grid(bounds = (-5.0, 10.0, -5.0, 10.0, 0.0, 5.0))
+
+        cameras_info = [
+            {"position":(10, 0, 2), "resolution":(1200, 800), "focal_point":(0, 0, 1)},
+            {"position":(0, 10, 1), "resolution":(1200, 800), "focal_point":(0, 0, 1)},
+            {"position":(6, 9, 7), "resolution":(1200, 800), "focal_point":(0, 0, 1)},
+            {"position":(-10, -10, 10), "resolution":(1200, 800), "focal_point":(0, 0, 1)},
+            {"position":(10, -10, 10), "resolution":(1200, 800), "focal_point":(0, 0, 1)},
+        ]
+
+        self.vista_tracker = PyVistaTracker(cameras_info, self.actors)
+        print(self.vista_tracker.get_position_of_actors_in_group("tracked"))
 
         self.reset_cameras()
 
@@ -154,11 +145,13 @@ class Simulation:
     def add_all_meshes_to_plotter(self, local_plotter, subplot_index=None):
         if subplot_index is not None:
             local_plotter.subplot(0, subplot_index)
-        local_plotter.add_mesh(self.player_mesh, color="blue")
+        actor = local_plotter.add_mesh(self.player_mesh, color="blue")
+        if subplot_index == 1: self.actors["other"].append(actor)
         for s in self.static_spheres:
-            local_plotter.add_mesh(s, color="lime")
-        local_plotter.add_mesh(self.pointer.vista, color="yellow")
-
+            actor = local_plotter.add_mesh(s, color="lime")
+            if subplot_index == 1: self.actors["tracked"].append(actor)
+        actor = local_plotter.add_mesh(self.pointer.vista, color="yellow")
+        if subplot_index == 1: self.actors["other"].append(actor)
         self.plotter.add_mesh(pv.Cone(center=self.camera_positions[1], direction=(1,0,0)), color="green", opacity=0.9)
         self.plotter.add_mesh(pv.Cone(center=self.camera_positions[2], direction=(0,1,0)), color="yellow", opacity=0.9)
 
@@ -220,7 +213,7 @@ class Simulation:
         self.reset_cameras()
         self.plotter.show(interactive_update=True)
         for i in range(self.camer_count):
-                self.hidden_plotters[i].show(interactive_update=True)
+            self.hidden_plotters[i].show(interactive_update=True)
         self.virtual_env.show_plotter()
 
         self.cv_window.startWindow()

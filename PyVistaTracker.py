@@ -34,7 +34,7 @@ class PyVistaTracker():
                     new_plotter.add_actor(actor)
 
             my_light = pv.Light(
-                position=cam["resolution"], 
+                position=cam["position"], 
                 focal_point=(0, 0, 0), 
                 color='white',
                 light_type='scene light' # 'scene light' means it stays fixed in the 3D world
@@ -93,7 +93,7 @@ class PyVistaTracker():
     def get_position_of_actors_in_group(self, group_name):
         positions = []
         for actor in self.actors[group_name]:
-            pos = actor.GetPosition()
+            pos = actor.GetCenter()
             positions.append(pos)
         return positions
 
