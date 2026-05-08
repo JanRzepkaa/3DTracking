@@ -3,8 +3,7 @@ import numpy as np
 from input.image_processor import ImageProcessor
 
 class CameraAnalysis:
-    def __init__(self, cam_id, config=None):
-        self.cam_id = cam_id
+    def __init__(self, config=None):
         self.last_known_centers = []
         self.last_timestamp = 0.0
         
@@ -63,6 +62,10 @@ class CameraAnalysis:
         
         detection = self.config.get('detection', {})
         self.min_contour_area = detection.get('min_contour_area', 50)
+
+        self.brightness = self.config.get('camera', {}).get('brightness', 0)
+        self.contrast = self.config.get('camera', {}).get('contrast', 100)
+        self.saturation = self.config.get('camera', {}).get('saturation', 100)
     
     def update_config(self, config):
         """Update configuration and refresh internal parameters."""
@@ -157,33 +160,32 @@ class CameraAnalysis:
     
     def _apply_camera_adjustments(self, frame):
         """Apply camera adjustments (brightness, contrast, saturation) to frame."""
-        camera = self.config.get('camera', {})
-        
         adjusted = frame.copy()
         
-        brightness = camera.get('brightness', 0)
+        
+        brightness = self.brightness
         if brightness != 0:
             adjusted = ImageProcessor.adjust_brightness(adjusted, brightness)
         
         # Map 0-200 range to 0.5-2.0
-        contrast_value = camera.get('contrast', 100) / 100.0
+        contrast_value = self.contrast / 100.0
         if contrast_value != 1.0:
             adjusted = ImageProcessor.adjust_contrast(adjusted, contrast_value)
         
         # Map 0-200 range to 0.0-2.0
-        saturation_value = camera.get('saturation', 100) / 100.0
+        saturation_value = self.saturation / 100.0
         if saturation_value != 1.0:
             adjusted = ImageProcessor.adjust_saturation(adjusted, saturation_value)
         
         return adjusted
     
-    def process_frame_auto_adjusted(self, frame, timestamp, debug=False):
+    def process_frame_auto_adjusted(self, frame_rgb, timestamp, debug=False):
         """
         Process frame with automatic camera adjustments applied.
         Takes raw BGR frame and returns detected centers.
         
         Args:
-            frame: Input BGR frame
+            frame_rgb: Input RGB frame
             timestamp: Frame timestamp
             debug: Return additional debug info (centers, frame, mask)
         
@@ -191,8 +193,11 @@ class CameraAnalysis:
             If debug: (centers, frame, mask)
             Else: centers list
         """
+
+        bgr_frame = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+
         # Apply camera adjustments first
-        adjusted_frame = self._apply_camera_adjustments(frame)
+        adjusted_frame = self._apply_camera_adjustments(bgr_frame)
         
         # Then process with color detection
         return self.process_frame(adjusted_frame, timestamp, debug=debug)
