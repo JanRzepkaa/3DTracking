@@ -6,7 +6,7 @@ def libusb_high_speed_capture():
     # Initialize the camera via libusb
     # RES_LARGE is 640x480. RES_SMALL is 320x240
     try:
-        cam = Camera(0, fps=60, resolution=Camera.RES_SMALL, colour=True)
+        cam = Camera(0, fps=60, resolution=Camera.RES_LARGE, colour=True)
     except Exception as e:
         print("Could not find PS3 Eye on libusb. Did Zadig finish successfully?")
         return
