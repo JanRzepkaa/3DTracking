@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from image_processor import ImageProcessor
+from input.image_processor import ImageProcessor
 
 class CameraAnalysis:
     def __init__(self, cam_id, config=None):

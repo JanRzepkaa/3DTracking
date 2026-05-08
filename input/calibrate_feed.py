@@ -2,9 +2,9 @@ import cv2
 import numpy as np
 import yaml
 from pathlib import Path
-from analyze_video import CameraAnalysis
-from capture_video import CameraCapture
-from image_processor import ImageProcessor
+from input.analyze_video import CameraAnalysis
+from input.capture_video import CameraCapture
+from input.image_processor import ImageProcessor
 
 
 class CameraCalibration:

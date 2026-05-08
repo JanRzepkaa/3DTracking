@@ -4,9 +4,9 @@ Example usage of the camera calibration system with config-based detection.
 
 import yaml
 from pathlib import Path
-from capture_video import CameraCapture
-from analyze_video import CameraAnalysis
-from calibrate_feed import CameraCalibration
+from input.capture_video import CameraCapture
+from input.analyze_video import CameraAnalysis
+from input.calibrate_feed import CameraCalibration
 
 
 def load_config(config_path="config/ps3eye.yaml"):
@@ -25,7 +25,7 @@ def example_calibration():
     print("Adjust sliders to tune color detection parameters.")
     print("Press 's' to save config, 'r' to reset, 'q' to quit.")
     
-    calibration = CameraCalibration(cam_id=1, config_path="config/ps3eye.yaml")
+    calibration = CameraCalibration(cam_id=0, config_path="config/ps3eye.yaml")
     calibration.run()
 
 
@@ -35,7 +35,7 @@ def example_with_config():
     config = load_config("config/ps3eye.yaml")
     
     print("Initializing camera with config...")
-    cam_capture = CameraCapture(cam_id=0, config=config)
+    cam_capture = CameraCapture(cam_id=1, config=config)
     cam_capture.start_capture()
     
     print("Starting feed with analysis... Press 'q' to quit.")

@@ -8,11 +8,11 @@ hsv:
   lower:
     h: 29
     s: 49
-    v: 50
+    v: 241
   upper:
     h: 30
     s: 255
-    v: 255
+    v: 244
 morphology:
   erode_iterations: 2
   dilate_iterations: 0

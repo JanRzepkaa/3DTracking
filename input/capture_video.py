@@ -1,8 +1,8 @@
 from pseyepy import Camera, Display
 import cv2
 import numpy as np
-from analyze_video import CameraAnalysis
-from image_processor import ImageProcessor
+from input.analyze_video import CameraAnalysis
+from input.image_processor import ImageProcessor
 
 
 class CameraCapture:
@@ -99,6 +99,6 @@ class CameraCapture:
         self.stop_capture()
 
 if __name__ == "__main__":
-    cam_capture = CameraCapture(cam_id=0)
+    cam_capture = CameraCapture(cam_id=1)
     cam_capture.start_capture()
     cam_capture.show_feed(show_analysis=True)
