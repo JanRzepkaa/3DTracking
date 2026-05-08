@@ -1,6 +1,7 @@
 from pseyepy import Camera, Display
 import cv2
 import numpy as np
+import yaml
 from input.analyze_video import CameraAnalysis
 from input.image_processor import ImageProcessor
 
@@ -14,7 +15,7 @@ class CameraCapture:
         self.last_timestamp = 0.0
         self.last_frame = None
 
-        self.analysis = CameraAnalysis(cam_id, config)
+        self.analysis = CameraAnalysis(config=config)
 
     def start_capture(self):
         try:
@@ -82,7 +83,7 @@ class CameraCapture:
             bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
             if show_analysis:
-                result = self.analysis.process_frame(frame, timestamp, debug=False)
+                result = self.analysis.process_frame_auto_adjusted(frame, timestamp, debug=False)
 
                 # Draw the detected centers on the frame                
                 for (cx, cy) in result:
@@ -99,6 +100,10 @@ class CameraCapture:
         self.stop_capture()
 
 if __name__ == "__main__":
-    cam_capture = CameraCapture(cam_id=1)
+    # Load config if needed, e.g. from YAML
+    with open("config/ps3eye.yaml", 'r') as f:
+        config = yaml.safe_load(f)
+
+    cam_capture = CameraCapture(cam_id=1, config=config)
     cam_capture.start_capture()
     cam_capture.show_feed(show_analysis=True)

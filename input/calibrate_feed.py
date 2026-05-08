@@ -22,7 +22,7 @@ class CameraCalibration:
         self.camera_capture.start_capture()
         
         # Create analysis with config
-        self.analysis = CameraAnalysis(cam_id, self.config)
+        self.analysis = CameraAnalysis(config=self.config)
         
         # Window configuration
         self.window_name = f"Camera {cam_id} Calibration"
