@@ -1,11 +1,11 @@
 import pyvista as pv
 import numpy as np 
-from VirtualEnvHelpers import *
+from core.VirtualEnvHelpers import *
 import scipy
 import networkx as nx
 from itertools import combinations
-from VirtualPointManager import PointManager
-from Calibration import *
+from core.VirtualPointManager import PointManager
+from calibration.math.Calibration import *
 
 
 class VirtualCamera():

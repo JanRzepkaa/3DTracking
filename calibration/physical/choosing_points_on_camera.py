@@ -149,8 +149,8 @@ class CalibrationManager:
             }
             
         # Ensure directory exists before saving
-        os.makedirs("calibration", exist_ok=True)
-        filepath = "calibration/calibration_data.json"
+        os.makedirs("calibration/info", exist_ok=True)
+        filepath = "calibration/info/calibration_data.json"
         
         with open(filepath, 'w') as f:
             json.dump(clean_data, f, indent=4)

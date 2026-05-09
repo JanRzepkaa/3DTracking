@@ -1,11 +1,11 @@
-from PyVistaTracker import PyVistaTracker
-from VistaRod import Rod
+from virtual_env.PyVistaTracker import PyVistaTracker
+from virtual_env.VistaRod import Rod
 import pyvista as pv 
 import numpy as np 
 import time
 import cv2 
-from AnalyzePyVistaVideo import AnalyzePyVistaVideo
-from VirtualEnviroment import VirtualEnviroment
+from virtual_env.AnalyzePyVistaVideo import AnalyzePyVistaVideo
+from core.VirtualEnviroment import VirtualEnviroment
 
 class Simulation:
     def __init__(self):

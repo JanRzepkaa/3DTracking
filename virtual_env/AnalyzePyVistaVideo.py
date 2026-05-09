@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from Calibration import *
+from calibration.math.Calibration import *
 
 class AnalyzePyVistaVideo:
     def __init__(self, show_window=True):

@@ -35,7 +35,7 @@ def create_camera_frustum(scale=100.0, aspect_ratio=4/3):
     return pv.PolyData(points, faces)
 
 def main():
-    filepath = "calibration/camera_extrinsics.json"
+    filepath = "calibration/info/camera_extrinsics.json"
     if not os.path.exists(filepath):
         print(f"Error: {filepath} not found. Run your extrinsics calculation first!")
         return

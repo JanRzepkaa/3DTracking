@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import os
-from Calibration import solve_global_camera_ransac, intrictics_to_matrix, rvec_tvec_to_camera_pose
+from calibration.math.Calibration import solve_global_camera_ransac, intrictics_to_matrix, rvec_tvec_to_camera_pose
 
 def main():
     # 1. Define the True 3D Physical Points (in millimeters)
@@ -26,7 +26,7 @@ def main():
     print(f"Using Estimated Camera Matrix:\n{cam_matrix}\n")
 
     # 3. Load the 2D Clicked Pixel Data
-    input_file = "calibration/calibration_data.json"
+    input_file = "calibration/info/calibration_data.json"
     if not os.path.exists(input_file):
         print(f"Error: {input_file} not found. Run your GUI calibration first!")
         return
@@ -84,7 +84,7 @@ def main():
             print(f"Failed to solve for Camera {cam_id_str}. Error: {e}")
 
     # 7. Save the final calculated Extrinsics for the RL Engine to use
-    output_file = "calibration/camera_extrinsics.json"
+    output_file = "calibration/info/camera_extrinsics.json"
     with open(output_file, 'w') as f:
         json.dump(final_extrinsics, f, indent=4)
         

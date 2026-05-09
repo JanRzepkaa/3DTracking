@@ -1,8 +1,8 @@
 import pyvista as pv
 import numpy as np 
-from Calibration import *
-from VirtualEnvHelpers import *
-from VirtualEnvAnalysis import *
+from calibration.math.Calibration import *
+from core.VirtualEnvHelpers import *
+from core.VirtualEnvAnalysis import *
 import copy
 
 class VirtualEnviroment:
